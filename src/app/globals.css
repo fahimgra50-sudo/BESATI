@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@500;600;700;800&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+
+html, body { background: #f2f0e9; }
+.font-display { font-family: 'Baloo Da 2', 'Hind Siliguri', sans-serif; }
+.font-body { font-family: 'Hind Siliguri', 'Inter', sans-serif; }
+.font-num { font-family: 'Inter', sans-serif; }
+.font-luxe { font-family: 'Cormorant Garamond', 'Baloo Da 2', serif; }
+
+* { -webkit-tap-highlight-color: transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #cfd9d1; border-radius: 8px; }
+
+@keyframes slideUp { from { transform: translateY(24px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes popIn { from { transform: scale(.85); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+@keyframes shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
+.anim-slideUp { animation: slideUp .28s ease-out; }
+.anim-fadeIn { animation: fadeIn .2s ease-out; }
+.anim-popIn { animation: popIn .22s cubic-bezier(.34,1.56,.64,1); }
+@media (prefers-reduced-motion: reduce) {
+  .anim-slideUp, .anim-fadeIn, .anim-popIn { animation: none; }
+}
+.focus-ring:focus-visible { outline: 3px solid #F2A93B; outline-offset: 2px; }
+.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ---------- প্রিমিয়াম টাচ ---------- */
+.eyebrow {
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+}
+.shadow-premium {
+  box-shadow: 0 1px 2px rgba(20,10,10,0.04), 0 12px 28px -8px rgba(196,172,110,0.16), 0 2px 6px rgba(0,0,0,0.03);
+}
+.shadow-premium-hover:hover {
+  box-shadow: 0 4px 8px rgba(20,10,10,0.05), 0 20px 40px -10px rgba(196,172,110,0.24), 0 2px 8px rgba(0,0,0,0.04);
+}
+.gold-hairline {
+  background: linear-gradient(90deg, transparent, #E3B23C 20%, #F2A93B 50%, #E3B23C 80%, transparent);
+  height: 1px;
+}
+.card-premium {
+  position: relative;
+  transition: transform .25s cubic-bezier(.2,.7,.3,1), box-shadow .25s ease, border-color .25s ease;
+}
+.card-premium:hover {
+  transform: translateY(-4px);
+  border-color: #E3B23C55;
+}
+.btn-premium {
+  background: linear-gradient(155deg, #F5EFE0 0%, #EFE8D6 55%, #E5DCC3 100%);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 8px 18px -6px rgba(196,172,110,0.45);
+  transition: box-shadow .2s ease, transform .2s ease, filter .2s ease;
+}
+.btn-premium:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.18) inset, 0 12px 26px -6px rgba(196,172,110,0.55);
+}
+.btn-premium:active { transform: translateY(1px); }
+.shimmer-badge {
+  background: linear-gradient(110deg, #E3B23C 20%, #FCE7B0 40%, #E3B23C 60%);
+  background-size: 200% 100%;
+  animation: shimmer 2.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .shimmer-badge { animation: none; } }
+

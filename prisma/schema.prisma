@@ -1,0 +1,193 @@
+// এখন ডেভেলপমেন্টের জন্য SQLite ব্যবহার হচ্ছে।
+// রিয়েল সাইটে ডিপ্লয় করার সময় নিচের datasource ব্লক পরিবর্তন করে
+// PostgreSQL ব্যবহার করুন (README.md-তে বিস্তারিত আছে), কারণ Vercel/Railway-এর
+// মতো হোস্টিং-এ SQLite ফাইল স্থায়ী থাকে না।
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id             String      @id @default(cuid())
+  name           String
+  category       String
+  price          Int
+  mrp            Int
+  stock          Int         @default(0)
+  emoji          String      @default("🛍️")
+  imageUrl       String?
+  videoUrl       String?
+  images         String      @default("")
+  tags           String      @default("")
+  costPrice      Int?
+  supplierPrice  Int?
+  supplierCode   String?
+  supplierUrl    String?
+  specifications String      @default("")
+  variants       String      @default("")
+  color          String      @default("#B3122E")
+  description    String      @default("")
+  active         Boolean     @default(true)
+  rating         Float       @default(4.5)
+  reviewCount    Int         @default(0)
+  sold           Int         @default(0)
+  views          Int         @default(0)
+  flashSalePrice Int?
+  flashSaleEndsAt DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  orderItems     OrderItem[]
+  wishlistItems  WishlistItem[]
+  reviews        Review[]
+}
+
+model Customer {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String   @unique
+  email        String?
+  passwordHash String
+  address      String?
+  district     String?
+  thana        String?
+  points       Int      @default(0)
+  loyaltyCoins Int      @default(0)
+  createdAt    DateTime @default(now())
+  orders       Order[]
+  giftClaims   GiftClaim[]
+  wishlist     WishlistItem[]
+  reviews      Review[]
+}
+
+model Order {
+  id               String      @id @default(cuid())
+  customerId       String?
+  customerName     String
+  phone            String
+  address          String
+  district         String?
+  thana            String?
+  payment          String      @default("cod")
+  paymentTrxId     String?
+  status           String      @default("pending")
+  subtotal         Int
+  deliveryFee      Int
+  couponCode       String?
+  discount         Int         @default(0)
+  total            Int
+  pointsAwarded    Boolean     @default(false)
+  coinsAwarded     Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  currentLocation  String?
+  trackingNote     String?
+  estimatedDelivery DateTime?
+  courierName      String?
+  trackingId       String?
+  trackingUrl      String?
+  items            OrderItem[]
+  customer         Customer?   @relation(fields: [customerId], references: [id])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  name      String
+  price     Int
+  qty       Int
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product? @relation(fields: [productId], references: [id])
+}
+
+model Ad {
+  id        String   @id @default(cuid())
+  title     String
+  imageUrl  String
+  link      String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Settings {
+  id                  Int    @id @default(autoincrement())
+  shopName            String @default("বেসাতি")
+  deliveryCharge      Int    @default(60)
+  freeDeliveryOver    Int    @default(1500)
+  deliveryTimeDhaka   String @default("২৪-৪৮ ঘণ্টা")
+  deliveryTimeOutside String @default("৩-৫ দিন")
+  returnPolicy        String @default("৩ দিনের মধ্যে রিটার্ন গ্রহণযোগ্য (প্যাকেট অক্ষত থাকতে হবে)")
+  adminPasswordHash   String
+  coinsPer100         Int    @default(10)
+  giftCoinsRequired   Int    @default(500)
+  giftProductId       String?
+  featuredVideoUrl    String?
+  facebookUrl         String?
+  bkashNumber         String?
+  nagadNumber         String?
+}
+
+
+
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  customerId String
+  productId  String
+  createdAt  DateTime @default(now())
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, productId])
+  @@index([customerId])
+}
+
+
+
+model Review {
+  id           String   @id @default(cuid())
+  productId    String
+  customerId   String
+  customerName String
+  rating       Int
+  comment      String   @default("")
+  verified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, customerId])
+  @@index([productId])
+}
+
+model Coupon {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  type         String    @default("percent") // "percent" | "fixed"
+  value        Int
+  minOrder     Int       @default(0)
+  maxDiscount  Int?
+  expiresAt    DateTime?
+  usageLimit   Int?
+  usedCount    Int       @default(0)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+}
+
+model GiftClaim {
+  id         String   @id @default(cuid())
+  customerId String
+  productId  String?
+  coinsUsed  Int      @default(500)
+  status     String   @default("CLAIMED")
+  createdAt  DateTime @default(now())
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+}
