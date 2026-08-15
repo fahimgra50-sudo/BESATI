@@ -8,6 +8,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 // কোনো পরিচিত ই-কমার্স সাইট বা ফেসবুক পেজ এই নামে পাওয়া যায়নি (অনুসন্ধানের সময় পর্যন্ত)।
 export const metadata = {
   metadataBase: new URL(SITE_URL),
+  other: { 'google-site-verification': 'v7yK2dkBCtWjhLh9aVJ17__s3-D5v3Sf96OzufT33vc' },
   title: {
     default: "বেসাতি — সব পণ্য এক জায়গায় | ক্যাশ অন ডেলিভারি",
     template: "%s",
