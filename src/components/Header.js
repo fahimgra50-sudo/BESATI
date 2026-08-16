@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, ShoppingCart, Package, User, Home } from "lucide-react";
 import { useCart } from "@/lib/CartContext";
-import Logo from "@/components/Logo";
 
 export default function Header({ shopName, query, setQuery, showSearch = true }) {
   const { count } = useCart();
@@ -21,7 +20,8 @@ export default function Header({ shopName, query, setQuery, showSearch = true })
       <div className="gold-hairline" />
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
         <Link href="/" className="focus-ring flex items-center gap-2 shrink-0">
-          <Logo size={34} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/besati-logo.png" alt="Besati" className="h-9 w-auto" />
           <span className="font-luxe font-semibold text-2xl tracking-wide hidden sm:block text-[#1B2A22]">{shopName || "বেসাতি"}</span>
         </Link>
         {showSearch && (
@@ -56,4 +56,3 @@ export default function Header({ shopName, query, setQuery, showSearch = true })
     </header>
   );
 }
-
