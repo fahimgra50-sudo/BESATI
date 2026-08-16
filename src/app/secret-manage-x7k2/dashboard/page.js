@@ -582,7 +582,7 @@ function AdForm({ initial, onSave, onCancel }) {
       <div className="flex gap-2 pt-1">
         <button
           onClick={() => {
-            if (!f.title.trim() || !f.imageUrl.trim()) return;
+            if (!f.imageUrl.trim()) return;
             onSave({ ...f, sortOrder: Number(f.sortOrder) || 0 });
           }}
           className="focus-ring bg-[#EFE8D6] text-[#4A3405] font-semibold px-4 py-2 rounded-lg text-sm"
