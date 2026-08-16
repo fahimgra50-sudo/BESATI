@@ -472,13 +472,16 @@ export default function AdminDashboard() {
 
 function AdsPanel({ ads, loadAll, editingAd, setEditingAd }) {
   const saveAd = async (ad) => {
-    const method = ad.id ? "PUT" : "POST";
-    const url = ad.id ? `/api/admin/ads/${ad.id}` : "/api/admin/ads";
-    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(ad) });
-    if (res.ok) {
-      setEditingAd(null);
-      loadAll();
-    }
+  const method = ad.id ? "PUT" : "POST";
+  const url = ad.id ? `/api/admin/ads/${ad.id}` : "/api/admin/ads";
+  const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(ad) });
+  if (res.ok) {
+    setEditingAd(null);
+    loadAll();
+  } else {
+    const data = await res.json().catch(() => ({}));
+    alert(data.error || `সংরক্ষণ ব্যর্থ হয়েছে (status: ${res.status})। আবার লগইন করে চেষ্টা করুন।`);
+  }
   };
   const deleteAd = async (id) => {
     if (!confirm("এই বিজ্ঞাপনটি মুছে ফেলতে চান?")) return;
