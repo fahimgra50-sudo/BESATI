@@ -14,12 +14,12 @@ export async function POST(req) {
   const token = cookies().get(ADMIN_COOKIE)?.value;
   if (!verifyAdminToken(token)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json();
-  if (!body.title?.trim() || !body.imageUrl?.trim()) {
-    return NextResponse.json({ error: "শিরোনাম ও ছবির লিংক আবশ্যক" }, { status: 400 });
+  if (!body.imageUrl?.trim()) {
+    return NextResponse.json({ error: "ছবির লিংক আবশ্যক" }, { status: 400 });
   }
   const ad = await prisma.ad.create({
     data: {
-      title: body.title.trim(),
+      title: body.title?.trim() || "",
       imageUrl: body.imageUrl.trim(),
       link: body.link?.trim() || null,
       active: body.active !== false,
