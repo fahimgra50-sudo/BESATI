@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Filter, Sparkles, Search as SearchIcon, ArrowUpDown, X, Facebook } from "lucide-react";
+import { Filter, Search as SearchIcon, ArrowUpDown, X, Facebook } from "lucide-react";
 import Header from "@/components/Header";
 import ProductCard from "@/components/ProductCard";
 import ChatWidget from "@/components/ChatWidget";
@@ -53,39 +53,6 @@ export default function HomePage() {
       <Header shopName={settings?.shopName} query={query} setQuery={setQuery} />
 
       {ads.length > 0 && <HeroSlider ads={ads} />}
-
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#A9862D] via-[#EAE1C6] to-[#CBBE96] text-[#4A3405]">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-40"
-          style={{ background: "radial-gradient(circle at 82% 20%, rgba(227,178,60,0.35), transparent 55%)" }}
-        />
-        <div className="pointer-events-none absolute -right-10 -top-10 w-56 h-56 rounded-full border border-[#F2A93B]/20" />
-        <div className="pointer-events-none absolute right-16 top-20 w-24 h-24 rounded-full border border-[#F2A93B]/15" />
-        <div className="relative max-w-6xl mx-auto px-4 py-9 sm:py-12 flex flex-col sm:flex-row sm:items-end gap-5 justify-between">
-          <div>
-            <p className="eyebrow text-[#F2C775] font-semibold flex items-center gap-2">
-              <Sparkles size={13} /> প্রিমিয়াম কালেকশন
-            </p>
-            <h1 className="font-luxe italic font-semibold text-3xl sm:text-[2.75rem] leading-[1.15] mt-2">
-              যা লাগবে, ঘরে বসেই<br className="hidden sm:block" /> — {settings?.shopName || "বেসাতি"}
-            </h1>
-            <p className="text-white/80 text-sm mt-3 max-w-md">ক্যাশ অন ডেলিভারিতে অর্ডার করুন — পণ্য হাতে পেয়ে টাকা দিন।</p>
-          </div>
-          {settings && (
-            <div className="flex gap-3 shrink-0">
-              <div className="bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-2xl px-5 py-3.5 text-center">
-                <p className="font-num font-bold text-xl text-[#F2C775]">{settings.deliveryTimeDhaka}</p>
-                <p className="text-[11px] text-white/60 mt-0.5">ঢাকায় ডেলিভারি</p>
-              </div>
-              <div className="bg-white/[0.08] backdrop-blur-sm border border-white/10 rounded-2xl px-5 py-3.5 text-center">
-                <p className="font-num font-bold text-xl text-[#F2C775]">{money(settings.freeDeliveryOver)}+</p>
-                <p className="text-[11px] text-white/60 mt-0.5">ফ্রি ডেলিভারি</p>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="gold-hairline" />
-      </div>
 
       {settings?.featuredVideoUrl && (
         <div className="max-w-6xl mx-auto px-4 pt-5">
@@ -212,4 +179,4 @@ export default function HomePage() {
       <ChatWidget shopName={settings?.shopName} />
     </div>
   );
-}
+    }
