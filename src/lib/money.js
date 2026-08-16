@@ -10,4 +10,4 @@ export const STATUS_META = {
   cancelled: { label: "বাতিল হয়েছে", color: "#C24D57", bg: "#FBEEEF" },
 };
 
-export const CATEGORY_LIST = ["সব", "ইলেকট্রনিক্স", "ফ্যাশন", "হোম ও লিভিং", "বিউটি", "মোবাইল এক্সেসরিজ"];
+export const CATEGORY_LIST = ["সব", "Mobile Accessories", "Electronics", "Fashion", "Beauty", "Home & Living", "Kitchen & Dining", "Shoes & Bags", "Watches", "Jewelry & Accessories", "Kids & Toys", "Sports & Fitness", "Books & Stationery"];
