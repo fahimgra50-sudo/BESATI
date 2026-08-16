@@ -11,6 +11,7 @@ export default function ProductCard({ p }) {
   const { addToCart } = useCart();
   const [wished, setWished] = useState(false);
   const [wishBusy, setWishBusy] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const discount = p.mrp > p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0;
 
   const toggleWishlist = async (e) => {
@@ -39,11 +40,11 @@ export default function ProductCard({ p }) {
       <Link href={`/product/${p.id}`} className="text-left focus-ring">
         <div
           className="h-36 sm:h-40 flex items-center justify-center text-6xl relative overflow-hidden"
-          style={p.imageUrl ? undefined : { background: `linear-gradient(155deg, ${p.color}1a, ${p.color}33)` }}
+          style={p.imageUrl && !imgError ? undefined : { background: `linear-gradient(155deg, ${p.color}1a, ${p.color}33)` }}
         >
-          {p.imageUrl ? (
+          {p.imageUrl && !imgError ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <img src={p.imageUrl} alt={p.name} onError={() => setImgError(true)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
           ) : (
             <span>{p.emoji}</span>
           )}
