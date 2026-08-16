@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { verifyAdminToken, ADMIN_COOKIE } from "@/lib/auth";
-
+export const dynamic = "force-dynamic";
 // পাবলিক সেটিংস — পাসওয়ার্ড হ্যাশ বাদে সবকিছু
 export async function GET() {
   const s = await prisma.settings.findFirst();
