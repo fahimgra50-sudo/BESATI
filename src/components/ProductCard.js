@@ -39,12 +39,12 @@ export default function ProductCard({ p }) {
     <div className="card-premium group bg-white rounded-2xl border border-[#E7E4DA] overflow-hidden shadow-premium-hover flex flex-col">
       <Link href={`/product/${p.id}`} className="text-left focus-ring">
         <div
-          className="h-36 sm:h-40 flex items-center justify-center text-6xl relative overflow-hidden bg-white"
+          className="aspect-square flex items-center justify-center text-6xl relative overflow-hidden"
           style={p.imageUrl && !imgError ? undefined : { background: `linear-gradient(155deg, ${p.color}1a, ${p.color}33)` }}
         >
           {p.imageUrl && !imgError ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.imageUrl} alt={p.name} onError={() => setImgError(true)} className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105" />
+            <img src={p.imageUrl} alt={p.name} onError={() => setImgError(true)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
           ) : (
             <span>{p.emoji}</span>
           )}
