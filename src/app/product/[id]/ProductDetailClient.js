@@ -85,7 +85,7 @@ export default function ProductDetailClient({ product: initialProduct }) {
           >
             {p.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+              <img src={p.imageUrl} alt={p.name} className="w-full h-full object-contain" />
             ) : (
               p.emoji
             )}
@@ -137,61 +137,7 @@ export default function ProductDetailClient({ product: initialProduct }) {
         {p.videoUrl && (
           <div className="bg-white rounded-3xl p-5 sm:p-8 mt-4">
             <h2 className="font-display font-bold text-lg mb-3 text-[#1B2A22]">পণ্যের ভিডিও</h2>
-            <div className="relative w-full rounded-2xl overflow-hidden border border-[#E7E4DA]" style={{ paddingTop: "56.25%" }}>
-              <iframe
-                src={`https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(p.videoUrl)}&show_text=false`}
-                className="absolute inset-0 w-full h-full"
-                style={{ border: "none", overflow: "hidden" }}
-                scrolling="no"
-                frameBorder="0"
-                allowFullScreen
-                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                title="পণ্যের ভিডিও"
-              />
-            </div>
-          </div>
-        )}
-
-        <ReviewsSection productId={p.id} />
-      </div>
-      <ChatWidget />
-    </div>
-  );
-}              <span className="font-num">{p.rating}</span>
-              {p.reviewCount > 0 && <span className="font-num text-[#8A8A78]">({p.reviewCount} রিভিউ)</span>}
-            </div>
-            <div className="flex items-baseline gap-2 mt-3">
-              <span className="font-num font-extrabold text-3xl text-[#A9862D]">{money(p.price)}</span>
-              {discount > 0 && <span className="font-num text-[#A6A297] line-through">{money(p.mrp)}</span>}
-              {discount > 0 && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#FBEEEF] text-[#C24D57]">{discount}% ছাড়</span>
-              )}
-            </div>
-            <p className="text-sm mt-3 leading-relaxed text-[#4B5850]">{p.description}</p>
-            <p className="text-sm mt-3 flex items-center gap-2">
-              <span className={`inline-block w-2 h-2 rounded-full ${p.stock > 0 ? "bg-[#EFE8D6]" : "bg-[#C24D57]"}`} />
-              {p.stock > 0 ? "In Stock" : "Out of Stock"}
-            </p>
-            <p className="text-xs mt-3 flex items-center gap-1.5 text-[#4B5850]">
-              <Truck size={14} className="text-[#A9862D]" /> ক্যাশ অন ডেলিভারি
-            </p>
-            <button
-              disabled={p.stock === 0}
-              onClick={() => {
-                addToCart(p, 1);
-                router.push("/checkout");
-              }}
-              className="focus-ring mt-6 w-full flex items-center justify-center gap-2 bg-[#EFE8D6] disabled:bg-[#CFCFC5] text-[#4A3405] font-semibold py-3 rounded-xl hover:bg-[#E5DCC3]"
-            >
-              <ShoppingCart size={17} /> কার্টে যোগ করুন
-            </button>
-          </div>
-        </div>
-
-        {p.videoUrl && (
-          <div className="bg-white rounded-3xl p-5 sm:p-8 mt-4">
-            <h2 className="font-display font-bold text-lg mb-3 text-[#1B2A22]">পণ্যের ভিডিও</h2>
-            <div className="relative w-full rounded-2xl overflow-hidden border border-[#E7E4DA]" style={{ paddingTop: "56.25%" }}>
+            <div className="relative w-full h-[70vh] max-h-[600px] rounded-2xl overflow-hidden border border-[#E7E4DA]">
               <iframe
                 src={`https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(p.videoUrl)}&show_text=false`}
                 className="absolute inset-0 w-full h-full"
