@@ -3,6 +3,17 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { verifyAdminToken, ADMIN_COOKIE } from "@/lib/auth";
 
+// নাম থেকে slug বানানোর হেল্পার ফাংশন
+function slugify(text) {
+  return String(text)
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 // সব প্রোডাক্ট দেখানো — কাস্টমার ও এডমিন দুজনেই ব্যবহার করে
 export async function GET(req) {
   const token = cookies().get(ADMIN_COOKIE)?.value;
@@ -31,9 +42,21 @@ export async function POST(req) {
   if (!body.name || !body.category || body.price === undefined) {
     return NextResponse.json({ error: "নাম, ক্যাটাগরি ও দাম আবশ্যক" }, { status: 400 });
   }
+
+  // নাম থেকে slug জেনারেট করা, এবং ইউনিক আছে কিনা যাচাই করা
+  let baseSlug = slugify(body.name);
+  if (!baseSlug) baseSlug = "product";
+  let slug = baseSlug;
+  let counter = 1;
+  while (await prisma.product.findUnique({ where: { slug } })) {
+    slug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+
   const product = await prisma.product.create({
     data: {
       name: String(body.name).trim(),
+      slug,
       category: String(body.category).trim(),
       price: Number(body.price),
       mrp: Number(body.mrp) || Number(body.price),
