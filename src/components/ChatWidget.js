@@ -11,9 +11,57 @@ export default function ChatWidget({ shopName }) {
   const [loading, setLoading] = useState(false);
   const endRef = useRef(null);
 
+  // বাটনের position (null মানে ডিফল্ট bottom-5 right-5 জায়গায় থাকবে)
+  const [pos, setPos] = useState(null);
+  const dragRef = useRef({ dragging: false, moved: false, startX: 0, startY: 0, baseX: 0, baseY: 0 });
+  const btnRef = useRef(null);
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
+
+  const clampPos = (x, y) => {
+    const w = btnRef.current?.offsetWidth || 150;
+    const h = btnRef.current?.offsetHeight || 50;
+    const maxX = window.innerWidth - w - 8;
+    const maxY = window.innerHeight - h - 8;
+    return { x: Math.min(Math.max(8, x), Math.max(8, maxX)), y: Math.min(Math.max(8, y), Math.max(8, maxY)) };
+  };
+
+  const onPointerDown = (e) => {
+    const rect = btnRef.current.getBoundingClientRect();
+    dragRef.current = {
+      dragging: true,
+      moved: false,
+      startX: e.clientX,
+      startY: e.clientY,
+      baseX: rect.left,
+      baseY: rect.top,
+    };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+
+  const onPointerMove = (e) => {
+    if (!dragRef.current.dragging) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragRef.current.moved = true;
+    const next = clampPos(dragRef.current.baseX + dx, dragRef.current.baseY + dy);
+    setPos(next);
+  };
+
+  const onPointerUp = () => {
+    dragRef.current.dragging = false;
+  };
+
+  const handleButtonClick = () => {
+    // টেনে সরানোর পরে ক্লিক ইভেন্ট যেন চ্যাট না খুলে ফেলে
+    if (dragRef.current.moved) {
+      dragRef.current.moved = false;
+      return;
+    }
+    setOpen(true);
+  };
 
   const send = async () => {
     const text = input.trim();
@@ -40,8 +88,18 @@ export default function ChatWidget({ shopName }) {
     <>
       {!open && (
         <button
-          onClick={() => setOpen(true)}
-          className="focus-ring fixed bottom-5 right-5 z-30 bg-[#EFE8D6] text-[#4A3405] rounded-full pl-4 pr-5 py-3.5 shadow-xl flex items-center gap-2 hover:bg-[#E5DCC3]"
+          ref={btnRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onClick={handleButtonClick}
+          style={
+            pos
+              ? { position: "fixed", left: pos.x, top: pos.y, right: "auto", bottom: "auto", touchAction: "none" }
+              : { touchAction: "none" }
+          }
+          className={`focus-ring ${!pos ? "fixed bottom-5 right-5" : ""} z-30 bg-[#EFE8D6] text-[#4A3405] rounded-full pl-4 pr-5 py-3.5 shadow-xl flex items-center gap-2 hover:bg-[#E5DCC3] select-none cursor-grab active:cursor-grabbing`}
         >
           <MessageCircle size={20} />
           <span className="font-semibold text-sm">স্মার্ট দোকানি</span>
