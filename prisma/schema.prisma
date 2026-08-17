@@ -134,9 +134,6 @@ model Settings {
   nagadNumber         String?
 }
 
-
-
-
 model WishlistItem {
   id         String   @id @default(cuid())
   customerId String
@@ -148,92 +145,6 @@ model WishlistItem {
   @@unique([customerId, productId])
   @@index([customerId])
 }
-
-
-
-model Review {
-  id           String   @id @default(cuid())
-  productId    String
-  customerId   String
-  customerName String
-  rating       Int
-  comment      String   @default("")
-  verified     Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-
-  @@unique([productId, customerId])
-  @@index([productId])
-}
-
-model Coupon {
-  id           String    @id @default(cuid())
-  code         String    @unique
-  type         String    @default("percent") // "percent" | "fixed"
-  value        Int
-  minOrder     Int       @default(0)
-  maxDiscount  Int?
-  expiresAt    DateTime?
-  usageLimit   Int?
-  usedCount    Int       @default(0)
-  active       Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-}
-
-model GiftClaim {
-  id         String   @id @default(cuid())
-  customerId String
-  productId  String?
-  coinsUsed  Int      @default(500)
-  status     String   @default("CLAIMED")
-  createdAt  DateTime @default(now())
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-
-  @@index([customerId])
-}  id        String   @id @default(cuid())
-  title     String
-  imageUrl  String
-  link      String?
-  active    Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-}
-
-model Settings {
-  id                  Int    @id @default(autoincrement())
-  shopName            String @default("বেসাতি")
-  deliveryCharge      Int    @default(60)
-  freeDeliveryOver    Int    @default(1500)
-  deliveryTimeDhaka   String @default("২৪-৪৮ ঘণ্টা")
-  deliveryTimeOutside String @default("৩-৫ দিন")
-  returnPolicy        String @default("৩ দিনের মধ্যে রিটার্ন গ্রহণযোগ্য (প্যাকেট অক্ষত থাকতে হবে)")
-  adminPasswordHash   String
-  coinsPer100         Int    @default(10)
-  giftCoinsRequired   Int    @default(500)
-  giftProductId       String?
-  featuredVideoUrl    String?
-  facebookUrl         String?
-  bkashNumber         String?
-  nagadNumber         String?
-}
-
-
-
-
-model WishlistItem {
-  id         String   @id @default(cuid())
-  customerId String
-  productId  String
-  createdAt  DateTime @default(now())
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@unique([customerId, productId])
-  @@index([customerId])
-}
-
-
 
 model Review {
   id           String   @id @default(cuid())
