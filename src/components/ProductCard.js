@@ -37,7 +37,7 @@ export default function ProductCard({ p }) {
 
   return (
     <div className="card-premium group bg-white rounded-2xl border border-[#E7E4DA] overflow-hidden shadow-premium-hover flex flex-col">
-      <Link href={`/product/${p.id}`} className="text-left focus-ring">
+      <Link href={`/product/${p.slug || p.id}`} className="text-left focus-ring">
         <div
           className="aspect-square flex items-center justify-center text-6xl relative overflow-hidden"
           style={p.imageUrl && !imgError ? undefined : { background: `linear-gradient(155deg, ${p.color}1a, ${p.color}33)` }}
