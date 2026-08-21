@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { put } from "@vercel/blob";
 import { prisma } from "@/lib/db";
 import { verifyAdminToken, ADMIN_COOKIE } from "@/lib/auth";
 
-// নাম থেকে slug বানানোর হেল্পার ফাংশন
 function slugify(text) {
   return String(text)
     .toLowerCase()
@@ -14,7 +14,26 @@ function slugify(text) {
     .replace(/^-+|-+$/g, "");
 }
 
-// সব প্রোডাক্ট দেখানো — কাস্টমার ও এডমিন দুজনেই ব্যবহার করে
+// বাইরের কোনো ইমেজ লিংক থেকে ছবি ডাউনলোড করে, আমাদের নিজের Blob storage-এ স্থায়ীভাবে সেভ করে
+// এতে বাইরের লিংক পরে নষ্ট/মেয়াদোত্তীর্ণ হলেও আমাদের সাইটে ছবি ঠিকই থেকে যাবে
+async function saveImagePermanently(url) {
+  if (!url || !url.trim()) return url;
+  // যদি ইতিমধ্যে আমাদের নিজের blob স্টোরেজের লিংক হয়, তাহলে আবার ডাউনলোড করার দরকার নেই
+  if (url.includes("blob.vercel-storage.com")) return url;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return url; // ডাউনলোড ব্যর্থ হলে, আগের লিংকটাই ফেরত দাও (একদম বন্ধ না করে)
+    const buffer = await res.arrayBuffer();
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : contentType.includes("gif") ? "gif" : "jpg";
+    const filename = `products/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const blob = await put(filename, buffer, { access: "public", contentType });
+    return blob.url;
+  } catch (e) {
+    return url; // কোনো সমস্যা হলে, আগের লিংকটাই ফেরত দাও
+  }
+}
+
 export async function GET(req) {
   const token = cookies().get(ADMIN_COOKIE)?.value;
   const isAdmin = verifyAdminToken(token);
@@ -32,7 +51,6 @@ export async function GET(req) {
   return NextResponse.json(products);
 }
 
-// নতুন প্রোডাক্ট যোগ করা — শুধু এডমিন
 export async function POST(req) {
   const token = cookies().get(ADMIN_COOKIE)?.value;
   if (!verifyAdminToken(token)) {
@@ -43,7 +61,6 @@ export async function POST(req) {
     return NextResponse.json({ error: "নাম, ক্যাটাগরি ও দাম আবশ্যক" }, { status: 400 });
   }
 
-  // নাম থেকে slug জেনারেট করা, এবং ইউনিক আছে কিনা যাচাই করা
   let baseSlug = slugify(body.name);
   if (!baseSlug) baseSlug = "product";
   let slug = baseSlug;
@@ -52,6 +69,9 @@ export async function POST(req) {
     slug = `${baseSlug}-${counter}`;
     counter++;
   }
+
+  // ছবি ও ভিডিও লিংক নিজের storage-এ সেভ করা (ব্যর্থ হলে আগের লিংক থেকে যাবে)
+  const savedImageUrl = body.imageUrl && body.imageUrl.trim() ? await saveImagePermanently(body.imageUrl.trim()) : null;
 
   const product = await prisma.product.create({
     data: {
@@ -62,7 +82,7 @@ export async function POST(req) {
       mrp: Number(body.mrp) || Number(body.price),
       stock: Number(body.stock) || 0,
       emoji: body.emoji || "🛍️",
-      imageUrl: body.imageUrl && body.imageUrl.trim() ? body.imageUrl.trim() : null,
+      imageUrl: savedImageUrl,
       videoUrl: body.videoUrl && body.videoUrl.trim() ? body.videoUrl.trim() : null,
       costPrice: body.costPrice !== undefined && body.costPrice !== "" ? Number(body.costPrice) : null,
       supplierCode: body.supplierCode && body.supplierCode.trim() ? body.supplierCode.trim() : null,
