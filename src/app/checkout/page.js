@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ShieldCheck, Truck, MapPin, Phone, User, FileText, Lock, Mail, Tag, X } from "lucide-react";
 import Header from "@/components/Header";
 import { money } from "@/lib/money";
@@ -11,6 +11,8 @@ import UpazilaSearchSelect from "@/components/UpazilaSearchSelect";
 export default function CheckoutPage() {
   const { cart, clearCart } = useCart();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const loginOnly = searchParams.get("login") === "1";
   const [products, setProducts] = useState([]);
   const [settings, setSettings] = useState(null);
   const [customer, setCustomer] = useState(null);
@@ -109,6 +111,7 @@ export default function CheckoutPage() {
       setCustomer(me);
       setForm((f) => ({ ...f, name: data.name || account.name, phone: data.phone || account.phone }));
       setSubmitting(false);
+      if (loginOnly) router.push("/");
     } catch {
       setError("সংযোগ সমস্যা হয়েছে, আবার চেষ্টা করুন।");
       setSubmitting(false);
@@ -138,6 +141,7 @@ export default function CheckoutPage() {
       setCustomer(me);
       setForm((f) => ({ ...f, name: me.name || data.name || "", phone: me.phone || data.phone || "", address: me.address || "" }));
       setSubmitting(false);
+      if (loginOnly) router.push("/");
     } catch {
       setError("সংযোগ সমস্যা হয়েছে, আবার চেষ্টা করুন।");
       setSubmitting(false);
@@ -195,14 +199,27 @@ export default function CheckoutPage() {
   };
 
   if (authLoading) return <div className="min-h-screen bg-[#f2f0e9] flex items-center justify-center text-[#8A8A78]">চেকআউট প্রস্তুত হচ্ছে…</div>;
-  if (!items.length) return <div className="min-h-screen bg-[#f2f0e9]"><Header showSearch={false}/><div className="max-w-lg mx-auto px-4 py-16 text-center"><p className="text-[#8A8A78]">কার্ট খালি।</p><button onClick={() => router.push("/")} className="mt-4 text-[#A9862D] font-semibold">শপে ফিরে যান →</button></div></div>;
+
+  if (customer && loginOnly) {
+    return (
+      <div className="min-h-screen bg-[#f2f0e9]">
+        <Header showSearch={false} />
+        <div className="max-w-lg mx-auto px-4 py-16 text-center">
+          <p className="text-[#4B5850]">আপনি ইতিমধ্যে লগইন করা আছেন, {customer.name}!</p>
+          <button onClick={() => router.push("/account")} className="mt-4 text-[#A9862D] font-semibold">ড্যাশবোর্ডে যান →</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!items.length && !loginOnly) return <div className="min-h-screen bg-[#f2f0e9]"><Header showSearch={false}/><div className="max-w-lg mx-auto px-4 py-16 text-center"><p className="text-[#8A8A78]">কার্ট খালি।</p><button onClick={() => router.push("/")} className="mt-4 text-[#A9862D] font-semibold">শপে ফিরে যান →</button></div></div>;
 
   if (!customer) {
     return (
       <div className="min-h-screen bg-[#f2f0e9]">
         <Header showSearch={false} />
         <div className="max-w-lg mx-auto px-4 py-5 pb-10">
-          <h1 className="font-display font-bold text-xl mb-4">অর্ডার করতে অ্যাকাউন্ট দরকার</h1>
+          <h1 className="font-display font-bold text-xl mb-4">{loginOnly ? "লগইন / সাইনআপ" : "অর্ডার করতে অ্যাকাউন্ট দরকার"}</h1>
           <div className="bg-white border border-[#E7E4DA] rounded-2xl p-5 space-y-4">
             <div className="flex gap-2 border-b border-[#EDEBE2] pb-3">
               <button onClick={() => { setAuthMode("register"); setError(""); }} className={`flex-1 py-2 rounded-lg text-sm font-bold ${authMode === "register" ? "bg-[#EFE8D6] text-[#4A3405]" : "bg-[#F2F1EB]"}`}>নতুন অ্যাকাউন্ট</button>
@@ -211,19 +228,19 @@ export default function CheckoutPage() {
 
             {authMode === "register" ? (
               <>
-                <p className="text-sm text-[#4B5850]">কেনাকাটা চালিয়ে যেতে আগে একটি কাস্টমার অ্যাকাউন্ট তৈরি করুন। তারপর Checkout আসবে।</p>
+                <p className="text-sm text-[#4B5850]">{loginOnly ? "একটি কাস্টমার অ্যাকাউন্ট তৈরি করুন।" : "কেনাকাটা চালিয়ে যেতে আগে একটি কাস্টমার অ্যাকাউন্ট তৈরি করুন। তারপর Checkout আসবে।"}</p>
                 <div><label className="text-sm font-semibold">নাম</label><input value={account.name} onChange={(e)=>setAccount({...account,name:e.target.value})} placeholder="Full Name" className="focus-ring w-full mt-1 border border-[#DCD8CC] rounded-xl px-3 py-3 text-sm"/></div>
                 <div><label className="text-sm font-semibold">মোবাইল</label><input value={account.phone} onChange={(e)=>setAccount({...account,phone:e.target.value.replace(/\D/g,"").slice(0,11)})} placeholder="01XXXXXXXXX" inputMode="numeric" className="focus-ring w-full mt-1 border border-[#DCD8CC] rounded-xl px-3 py-3 text-sm font-num"/></div>
                 <div><label className="text-sm font-semibold">ইমেইল</label><input type="email" value={account.email} onChange={(e)=>setAccount({...account,email:e.target.value})} placeholder="you@example.com" className="focus-ring w-full mt-1 border border-[#DCD8CC] rounded-xl px-3 py-3 text-sm"/></div>
                 <div><label className="text-sm font-semibold">পাসওয়ার্ড</label><input type="password" value={account.password} onChange={(e)=>setAccount({...account,password:e.target.value})} placeholder="কমপক্ষে ৪ অক্ষর" className="focus-ring w-full mt-1 border border-[#DCD8CC] rounded-xl px-3 py-3 text-sm"/></div>
-                <button onClick={createAccount} disabled={submitting} className="w-full bg-[#EFE8D6] text-[#4A3405] font-bold py-3.5 rounded-xl disabled:opacity-60">{submitting ? "অ্যাকাউন্ট তৈরি হচ্ছে…" : "অ্যাকাউন্ট তৈরি করে Checkout"}</button>
+                <button onClick={createAccount} disabled={submitting} className="w-full bg-[#EFE8D6] text-[#4A3405] font-bold py-3.5 rounded-xl disabled:opacity-60">{submitting ? "অ্যাকাউন্ট তৈরি হচ্ছে…" : "অ্যাকাউন্ট তৈরি করুন"}</button>
               </>
             ) : (
               <>
-                <p className="text-sm text-[#4B5850]">আগে থেকে অ্যাকাউন্ট থাকলে লগইন করুন। তারপর Checkout আসবে।</p>
+                <p className="text-sm text-[#4B5850]">আগে থেকে অ্যাকাউন্ট থাকলে লগইন করুন।</p>
                 <div><label className="text-sm font-semibold">মোবাইল</label><input value={login.phone} onChange={(e)=>setLogin({...login,phone:e.target.value.replace(/\D/g,"").slice(0,11)})} placeholder="01XXXXXXXXX" inputMode="numeric" className="focus-ring w-full mt-1 border border-[#DCD8CC] rounded-xl px-3 py-3 text-sm font-num"/></div>
                 <div><label className="text-sm font-semibold">পাসওয়ার্ড</label><input type="password" value={login.password} onChange={(e)=>setLogin({...login,password:e.target.value})} placeholder="পাসওয়ার্ড" className="focus-ring w-full mt-1 border border-[#DCD8CC] rounded-xl px-3 py-3 text-sm"/></div>
-                <button onClick={loginAccount} disabled={submitting} className="w-full bg-[#EFE8D6] text-[#4A3405] font-bold py-3.5 rounded-xl disabled:opacity-60">{submitting ? "লগইন হচ্ছে…" : "লগইন করে Checkout"}</button>
+                <button onClick={loginAccount} disabled={submitting} className="w-full bg-[#EFE8D6] text-[#4A3405] font-bold py-3.5 rounded-xl disabled:opacity-60">{submitting ? "লগইন হচ্ছে…" : "লগইন করুন"}</button>
               </>
             )}
 
@@ -304,4 +321,4 @@ export default function CheckoutPage() {
       </div>
     </div>
   );
-}
+          }
