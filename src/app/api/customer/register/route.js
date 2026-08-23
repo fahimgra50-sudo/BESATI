@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { Resend } from "resend";
 import { prisma } from "@/lib/db";
 import { createCustomerToken, CUSTOMER_COOKIE } from "@/lib/customerAuth";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const NOTIFY_EMAIL = "fahimgra50@gmail.com";
 
 export async function POST(req) {
   const { name, phone, email, password } = await req.json();
@@ -28,6 +32,23 @@ export async function POST(req) {
     data: { name: name.trim(), phone: phone.trim(), email: email.trim(), passwordHash },
   });
 
+  // নতুন কাস্টমার জয়েন করার নোটিফিকেশন ইমেইল — ব্যর্থ হলেও সাইনআপ প্রক্রিয়া থেমে যাবে না
+  try {
+    await resend.emails.send({
+      from: "Besati <onboarding@resend.dev>",
+      to: NOTIFY_EMAIL,
+      subject: "New customer joined Besati",
+      html: `<p>A new customer just signed up.</p>
+             <ul>
+               <li><b>Name:</b> ${customer.name}</li>
+               <li><b>Phone:</b> ${customer.phone}</li>
+               <li><b>Email:</b> ${customer.email}</li>
+             </ul>`,
+    });
+  } catch (e) {
+    console.error("Notification email failed:", e);
+  }
+
   const token = createCustomerToken(customer.id);
   const res = NextResponse.json({ success: true, name: customer.name, phone: customer.phone });
   res.cookies.set(CUSTOMER_COOKIE, token, {
@@ -38,4 +59,4 @@ export async function POST(req) {
     maxAge: 60 * 60 * 24 * 30,
   });
   return res;
-}
+    }
