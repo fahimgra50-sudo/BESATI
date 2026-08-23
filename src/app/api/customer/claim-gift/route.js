@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
-import { verifyCustomerToken, CUSTOMER_COOKIE } from "@/lib/auth";
+import { verifyCustomerToken, CUSTOMER_COOKIE } from "@/lib/customerAuth";
 
 const COINS_REQUIRED = 500;
 const MAX_PRICE = 1000;
 
-// ১০০০ টাকার মধ্যের প্রোডাক্ট লিস্ট দেখানো
 export async function GET(req) {
   const token = cookies().get(CUSTOMER_COOKIE)?.value;
   const customerId = verifyCustomerToken(token);
@@ -20,7 +19,6 @@ export async function GET(req) {
   return NextResponse.json(products);
 }
 
-// প্রোডাক্ট বেছে গিফট দাবি করা
 export async function POST(req) {
   const token = cookies().get(CUSTOMER_COOKIE)?.value;
   const customerId = verifyCustomerToken(token);
