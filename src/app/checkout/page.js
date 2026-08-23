@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ShieldCheck, Truck, MapPin, Phone, User, FileText, Lock, Mail, Tag, X } from "lucide-react";
 import Header from "@/components/Header";
@@ -9,6 +9,14 @@ import { BD_DISTRICTS, BD_LOCATIONS } from "@/lib/bdLocations";
 import UpazilaSearchSelect from "@/components/UpazilaSearchSelect";
 
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f2f0e9] flex items-center justify-center text-[#8A8A78]">লোড হচ্ছে…</div>}>
+      <CheckoutInner />
+    </Suspense>
+  );
+}
+
+function CheckoutInner() {
   const { cart, clearCart } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -321,4 +329,4 @@ export default function CheckoutPage() {
       </div>
     </div>
   );
-          }
+    }
