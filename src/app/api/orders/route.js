@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { Resend } from "resend";
 import { prisma } from "@/lib/db";
 import { verifyCustomerToken, CUSTOMER_COOKIE } from "@/lib/customerAuth";
 import { verifyAdminToken, ADMIN_COOKIE } from "@/lib/auth";
 import { isValidBangladeshLocation } from "@/lib/validateLocation";
 import { computeCouponDiscount } from "@/lib/coupon";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const NOTIFY_EMAIL = "fahimgra50@gmail.com";
 
 export async function GET() {
   const token = cookies().get(ADMIN_COOKIE)?.value;
@@ -20,7 +24,7 @@ export async function POST(req) {
   const body = await req.json();
   const { items, customerName, phone, address, district, thana, orderNotes, couponCode, payment, paymentTrxId } = body;
   if (!Array.isArray(items) || !items.length) return NextResponse.json({ error: "কার্ট খালি" }, { status: 400 });
-  if (!customerName?.trim() || !phone?.trim() || !address?.trim() || !district || !thana) return NextResponse.json({ error: "Checkout-এর সব প্রয়োজনীয় তথ্য দিন" }, { status: 400 });
+  if (!customerName?.trim() || !phone?.trim() || !address?.trim() || !district || !thana) return NextResponse.json({ error: "Checkout-এর সব প্রয়োজনীয় তথ্য দিন" }, { status: 400 });
   if (!isValidBangladeshLocation(district, thana)) return NextResponse.json({ error: "সঠিক District ও Thana/Upazila তালিকা থেকে নির্বাচন করুন" }, { status: 400 });
 
   const paymentMethod = ["cod", "bkash", "nagad"].includes(payment) ? payment : "cod";
@@ -79,5 +83,28 @@ export async function POST(req) {
     await tx.customer.update({ where: { id: customerId }, data: { address: address.trim(), district, thana } });
     return created;
   });
+
+  // নতুন অর্ডারের নোটিফিকেশন ইমেইল — ব্যর্থ হলেও অর্ডার প্রক্রিয়া থেমে যাবে না
+  try {
+    const itemsList = normalized.map(it => `<li>${it.name} × ${it.qty} — ৳${it.price * it.qty}</li>`).join("");
+    await resend.emails.send({
+      from: "Besati <onboarding@resend.dev>",
+      to: NOTIFY_EMAIL,
+      subject: `New order received — ৳${total}`,
+      html: `<p>A new order has been placed.</p>
+             <ul>
+               <li><b>Customer:</b> ${customerName}</li>
+               <li><b>Phone:</b> ${phone}</li>
+               <li><b>Address:</b> ${address}, ${thana}, ${district}</li>
+               <li><b>Payment:</b> ${paymentMethod}</li>
+               <li><b>Total:</b> ৳${total}</li>
+             </ul>
+             <p><b>Items:</b></p>
+             <ul>${itemsList}</ul>`,
+    });
+  } catch (e) {
+    console.error("Order notification email failed:", e);
+  }
+
   return NextResponse.json(order, { status: 201 });
 }
