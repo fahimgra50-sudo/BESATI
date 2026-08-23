@@ -37,7 +37,7 @@ export default function Header({ shopName, query, setQuery, showSearch = true })
         )}
         {!showSearch && <div className="flex-1" />}
         <Link href="/" className="focus-ring hidden sm:flex items-center gap-1.5 text-sm font-semibold text-[#4B5850] hover:text-[#A9862D] px-2"><Home size={16}/> Home</Link>
-        {!loggedIn && <Link href="/checkout" className="focus-ring hidden sm:flex items-center gap-1.5 text-sm font-semibold text-[#4B5850] hover:text-[#A9862D] px-2"><LogIn size={16} /> Login</Link>}
+        {!loggedIn && <Link href="/checkout?login=1" className="focus-ring hidden sm:flex items-center gap-1.5 text-sm font-semibold text-[#4B5850] hover:text-[#A9862D] px-2"><LogIn size={16} /> Login</Link>}
         {loggedIn && <Link href="/account" className="focus-ring hidden sm:flex items-center gap-1.5 text-sm font-semibold text-[#4B5850] hover:text-[#A9862D] px-2"><User size={16} /> Customer Dashboard</Link>}
         {loggedIn && <Link href="/my-orders" className="focus-ring hidden sm:flex items-center gap-1.5 text-sm font-semibold text-[#4B5850] hover:text-[#A9862D] px-2"><Package size={16} /> My Orders</Link>}
         <Link href="/cart" className="focus-ring relative p-2 rounded-full hover:bg-[#F2F1EB]">
@@ -51,7 +51,7 @@ export default function Header({ shopName, query, setQuery, showSearch = true })
       </div>
       <div className="sm:hidden flex px-3 pb-2 gap-2">
         <Link href="/" className="focus-ring flex-1 flex items-center justify-center gap-1 text-xs font-semibold text-[#4B5850] border border-[#E7E4DA] rounded-full py-1.5"><Home size={13}/> Home</Link>
-        {!loggedIn && <Link href="/checkout" className="focus-ring flex-1 flex items-center justify-center gap-1 text-xs font-semibold text-[#4B5850] border border-[#E7E4DA] rounded-full py-1.5"><LogIn size={13}/> Login</Link>}
+        {!loggedIn && <Link href="/checkout?login=1" className="focus-ring flex-1 flex items-center justify-center gap-1 text-xs font-semibold text-[#4B5850] border border-[#E7E4DA] rounded-full py-1.5"><LogIn size={13}/> Login</Link>}
         {loggedIn && <Link href="/account" className="focus-ring flex-1 flex items-center justify-center gap-1 text-xs font-semibold text-[#4B5850] border border-[#E7E4DA] rounded-full py-1.5"><User size={13}/> Dashboard</Link>}
         {loggedIn && <Link href="/my-orders" className="focus-ring flex-1 flex items-center justify-center gap-1 text-xs font-semibold text-[#4B5850] border border-[#E7E4DA] rounded-full py-1.5"><Package size={13}/> My Orders</Link>}
       </div>
