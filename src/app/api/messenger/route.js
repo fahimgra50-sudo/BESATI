@@ -7,84 +7,131 @@ const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // ======================================================
-// FACEBOOK WEBHOOK VERIFICATION
+// Facebook Webhook Verification
 // ======================================================
 export async function GET(req) {
-  try {
-    const { searchParams } = new URL(req.url);
+  const { searchParams } = new URL(req.url);
 
-    const mode = searchParams.get("hub.mode");
-    const token = searchParams.get("hub.verify_token");
-    const challenge = searchParams.get("hub.challenge");
+  const mode = searchParams.get("hub.mode");
+  const token = searchParams.get("hub.verify_token");
+  const challenge = searchParams.get("hub.challenge");
 
-    console.log("🔎 Facebook webhook verification request");
-
-    if (
-      mode === "subscribe" &&
-      token &&
-      VERIFY_TOKEN &&
-      token === VERIFY_TOKEN
-    ) {
-      console.log("✅ Facebook webhook verified successfully");
-
-      return new NextResponse(challenge || "", {
-        status: 200,
-      });
-    }
-
-    console.error("❌ Facebook webhook verification failed");
-
-    return new NextResponse("Forbidden", {
-      status: 403,
-    });
-  } catch (error) {
-    console.error("❌ Webhook verification error:", error);
-
-    return new NextResponse("Verification error", {
-      status: 500,
-    });
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("Facebook webhook verified");
+    return new NextResponse(challenge, { status: 200 });
   }
+
+  return new NextResponse("Forbidden", { status: 403 });
 }
 
 // ======================================================
-// GEMINI AI REPLY
+// Natural Gemini AI Reply
 // ======================================================
 async function getGeminiReply(message, settings, products) {
   if (!GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is missing.");
   }
 
-  const productLines =
+  const productList =
     products.length > 0
       ? products
           .map(
-            (p, index) =>
-              `${index + 1}. ${p.name} | Category: ${
-                p.category || "N/A"
-              } | Price: ${money(p.price)} | Stock: ${
-                p.stock > 0
-                  ? `${p.stock} available`
-                  : "Out of stock"
+            (p, i) =>
+              `${i + 1}. ${p.name} | বিভাগ: ${
+                p.category || "নির্দিষ্ট নেই"
+              } | দাম: ${money(p.price)} | স্টক: ${
+                p.stock > 0 ? `${p.stock}টি আছে` : "স্টকে নেই"
               }`
           )
           .join("\n")
-      : "বর্তমানে কোনো পণ্য পাওয়া যাচ্ছে না।";
+      : "বর্তমানে কোনো পণ্য নেই।";
 
   const prompt = `
-তুমি "${settings?.shopName || "Besati"}" নামের একটি অনলাইন শপের বন্ধুত্বপূর্ণ AI দোকানি।
+তুমি "${settings?.shopName || "Besati"}" অনলাইন শপের একজন স্বাভাবিক, বন্ধুত্বপূর্ণ এবং বুদ্ধিমান কাস্টমার সাপোর্ট প্রতিনিধি।
 
-Facebook Messenger-এ কাস্টমারের সাথে স্বাভাবিকভাবে কথা বলবে।
+সবচেয়ে গুরুত্বপূর্ণ নিয়ম:
 
-নিয়ম:
-- বাংলা প্রশ্ন হলে বাংলায় উত্তর দেবে।
-- ইংরেজি প্রশ্ন হলে ইংরেজিতে উত্তর দিতে পারো।
-- উত্তর ছোট, পরিষ্কার এবং বন্ধুত্বপূর্ণ হবে।
-- সাধারণত 1-5টি ছোট বাক্যে উত্তর দেবে।
-- অতিরিক্ত emoji ব্যবহার করবে না।
-- পণ্যের তালিকার বাইরে কোনো পণ্য, দাম, অফার বা stock বানিয়ে বলবে না।
-- কোনো পণ্য stock না থাকলে available বলবে না।
+কাস্টমার যেভাবেই লিখুক তুমি তার কথার অর্থ বোঝার চেষ্টা করবে।
 
-দোকানের তথ্য:
+তুমি বুঝতে পারবে:
+- বাংলা
+- Banglish / Roman Bangla
+- English
+- বাংলা + English মিশ্র ভাষা
+- ভুল বানান
+- ছোট বা অসম্পূর্ণ বাক্য
+- কথ্য ভাষা
+- সাধারণ টাইপিং ভুল
+
+উদাহরণ:
+"Tumi kemon aso"
+"vai price koto"
+"delivery koydin"
+"what products ase"
+"eta available?"
+"Why eto dam?"
+"ki obostha"
+"ami eta nibo"
+
+এসবের অর্থ বুঝে উত্তর দেবে।
+
+কিন্তু একটি অত্যন্ত গুরুত্বপূর্ণ নিয়ম:
+
+কাস্টমার যে ভাষাতেই লিখুক, তোমার উত্তর সবসময় স্বাভাবিক ও সহজ বাংলায় হবে।
+
+কাস্টমার Banglish লিখলে Banglish-এ উত্তর দেবে না।
+কাস্টমার English লিখলেও English-এ উত্তর দেবে না।
+সবসময় সুন্দর বাংলায় উত্তর দেবে।
+
+--------------------------------------------------
+কথাবলার ধরন
+--------------------------------------------------
+
+তুমি কোনো রোবটের মতো কথা বলবে না।
+
+মানুষ যেমন স্বাভাবিকভাবে কথা বলে সেভাবেই উত্তর দেবে।
+
+- ছোট প্রশ্নে ছোট উত্তর।
+- সাধারণ কথায় সাধারণ উত্তর।
+- প্রয়োজন হলে হালকা emoji ব্যবহার করতে পারো।
+- একই বাক্য বারবার ব্যবহার করবে না।
+- অযথা "জি" বারবার ব্যবহার করবে না।
+- অযথা "ভাই" বা "আপু" বারবার ব্যবহার করবে না।
+- কাস্টমারের কথার অনুভূতি ও প্রসঙ্গ বুঝে উত্তর দেবে।
+- অপ্রয়োজনীয় বড় paragraph লিখবে না।
+- কাস্টমার গল্প করতে চাইলে স্বাভাবিকভাবে কথা বলতে পারবে।
+- কাস্টমার মজা করলে হালকা মজা করে উত্তর দিতে পারবে।
+- কাস্টমার ধন্যবাদ দিলে স্বাভাবিকভাবে উত্তর দেবে।
+- কাস্টমার সালাম দিলে সালামের উত্তর দেবে।
+- কাস্টমার শুধু "হাই", "হ্যালো", "hello" লিখলে স্বাভাবিকভাবে অভিবাদন জানাবে।
+
+--------------------------------------------------
+না বুঝলে
+--------------------------------------------------
+
+কাস্টমারের কথা যদি সত্যিই বোঝা না যায়, কখনোই এই ধরনের পুরোনো রোবটিক উত্তর দেবে না:
+
+"আসসালামু আলাইকুম! 😊 আপনি পণ্যের নাম, দাম, ডেলিভারি..."
+
+এ ধরনের মেনু বা canned response ব্যবহার করবে না।
+
+বরং স্বাভাবিকভাবে বলবে, যেমন:
+
+"এই কথাটা ঠিক বুঝতে পারলাম না 😅 একটু অন্যভাবে বলবেন?"
+
+অথবা:
+
+"হুম, কথাটা পুরোপুরি বুঝতে পারিনি 😅 আরেকটু পরিষ্কার করে বলবেন?"
+
+অথবা:
+
+"আমি ঠিক ধরতে পারিনি 😅 একটু বুঝিয়ে বলবেন?"
+
+পরিস্থিতি অনুযায়ী বাক্য পরিবর্তন করবে।
+
+--------------------------------------------------
+দোকানের তথ্য
+--------------------------------------------------
 
 Shop name:
 ${settings?.shopName || "Besati"}
@@ -92,7 +139,7 @@ ${settings?.shopName || "Besati"}
 Payment:
 শুধু Cash on Delivery চালু আছে।
 
-Delivery:
+Delivery time:
 ঢাকার মধ্যে: ${
     settings?.deliveryTimeDhaka || "তথ্য পাওয়া যায়নি"
   }
@@ -113,25 +160,105 @@ ${
     "রিটার্ন পলিসির তথ্য বর্তমানে পাওয়া যাচ্ছে না।"
   }
 
+--------------------------------------------------
+পণ্যের তথ্য
+--------------------------------------------------
+
+নিচের তালিকাই বর্তমানে দোকানের সঠিক পণ্যের তথ্য।
+
+${productList}
+
 মোট পণ্য:
-${products.length}
+${products.length}টি
 
-পণ্যের তালিকা:
-${productLines}
+--------------------------------------------------
+পণ্যের ব্যাপারে কঠোর নিয়ম
+--------------------------------------------------
 
-কাস্টমারের প্রশ্ন:
+1. কাস্টমার কোনো পণ্যের দাম জানতে চাইলে তালিকা থেকে সঠিক দাম বলবে।
+
+2. কাস্টমার কোনো পণ্যের stock জানতে চাইলে তালিকা অনুযায়ী উত্তর দেবে।
+
+3. কোনো পণ্য stock-এ না থাকলে available বলবে না।
+
+4. তালিকায় নেই এমন পণ্যের নাম বানিয়ে বলবে না।
+
+5. নিজের থেকে কোনো দাম বানাবে না।
+
+6. নিজের থেকে কোনো discount বানাবে না।
+
+7. নিজের থেকে কোনো offer বানাবে না।
+
+8. নিজের থেকে কোনো stock বানাবে না।
+
+9. কাস্টমার "কি কি পণ্য আছে", "what products", "products ase?", "ki ki sell koro" ইত্যাদি জিজ্ঞেস করলে পণ্যের তালিকা থেকে নামগুলো সুন্দরভাবে দেখাবে।
+
+10. কাস্টমার "কয়টা product আছে", "koyta product", "how many products" ইত্যাদি জিজ্ঞেস করলে ${products.length}টি বলবে।
+
+--------------------------------------------------
+সাধারণ কথাবার্তা
+--------------------------------------------------
+
+দোকানের বাইরের সাধারণ প্রশ্ন বুঝতে পারলে স্বাভাবিকভাবে উত্তর দিতে পারো।
+
+উদাহরণ:
+
+কাস্টমার:
+"Tumi kemon aso"
+
+উত্তর:
+"আলহামদুলিল্লাহ, ভালো আছি 😊 আপনি কেমন আছেন?"
+
+কাস্টমার:
+"thanks"
+
+উত্তর:
+"স্বাগতম 😊"
+
+কাস্টমার:
+"Why sky is blue?"
+
+উত্তর:
+"সূর্যের আলোর বিচ্ছুরণের কারণে আকাশ আমাদের চোখে নীল দেখায়। 😊"
+
+তবে দোকানের পণ্য, দাম, stock, delivery বা order সম্পর্কিত তথ্যের ক্ষেত্রে অবশ্যই উপরের দোকানের তথ্য অনুসরণ করবে।
+
+--------------------------------------------------
+অর্ডার সম্পর্কিত কথা
+--------------------------------------------------
+
+কাস্টমার যদি কোনো পণ্য নিতে চায়, তাহলে স্বাভাবিকভাবে তাকে অর্ডার করার ব্যাপারে সাহায্য করবে।
+
+তবে এমন কোনো তথ্য বলবে না যা তোমার কাছে নেই।
+
+--------------------------------------------------
+উত্তরের দৈর্ঘ্য
+--------------------------------------------------
+
+সাধারণত 1-5টি ছোট বাক্যে উত্তর দেবে।
+
+প্রয়োজন না হলে বড় উত্তর দেবে না।
+
+কাস্টমার যতটুকু জানতে চেয়েছে, ততটুকুই বলবে।
+
+--------------------------------------------------
+সবশেষে
+--------------------------------------------------
+
+তুমি কোনো menu-based chatbot নও।
+
+তুমি একজন স্বাভাবিক online shop representative-এর মতো কথা বলবে।
+
+প্রতিটি নতুন মেসেজ আলাদাভাবে বুঝে উত্তর দেবে।
+
+কাস্টমারের ভাষা বুঝবে → অর্থ বুঝবে → তারপর স্বাভাবিক বাংলায় উত্তর দেবে।
+
+কাস্টমারের বর্তমান মেসেজ:
 ${message}
 `;
 
-  console.log("🤖 Sending request to Gemini...");
-  console.log("❓ Customer question:", message);
-  console.log("🔑 Gemini API key exists:", Boolean(GEMINI_API_KEY));
-  console.log("📦 Products loaded:", products.length);
-
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
-      GEMINI_API_KEY
-    )}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: "POST",
       headers: {
@@ -148,191 +275,95 @@ ${message}
           },
         ],
         generationConfig: {
-          temperature: 0.7,
+          temperature: 0.8,
           maxOutputTokens: 500,
         },
       }),
     }
   );
 
-  const data = await response.json().catch(() => ({}));
-
-  console.log("🤖 Gemini response status:", response.status);
+  const data = await response.json();
 
   if (!response.ok) {
-    console.error("❌ Gemini API error:", {
-      status: response.status,
-      statusText: response.statusText,
-      data,
-    });
+    console.error("Gemini API error:", data);
 
     throw new Error(
-      `Gemini API failed: ${response.status} ${
-        data?.error?.message || response.statusText
-      }`
+      `Gemini API failed: ${response.status} ${response.statusText}`
     );
   }
 
-  const text =
-    data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
   if (!text) {
-    console.error("❌ Gemini returned empty response:", data);
-
     throw new Error("Gemini returned an empty response.");
   }
-
-  console.log("✅ Gemini response received");
 
   return text;
 }
 
 // ======================================================
-// FALLBACK REPLY
+// Emergency fallback
 // ======================================================
-function fallbackReply(message, settings, products) {
-  const m = String(message || "").toLowerCase();
 
-  if (
-    /কয়টি|কয়টি|কতটি|কতগুলো|কত গুলো|কি কি|কী কী|কীকি|products|product list/.test(
-      m
-    )
-  ) {
-    if (products.length === 0) {
-      return "এই মুহূর্তে আমাদের কোনো পণ্য তালিকায় নেই।";
-    }
-
-    const names = products
-      .slice(0, 20)
-      .map((p, i) => `${i + 1}. ${p.name}`)
-      .join("\n");
-
-    return `আমাদের বর্তমানে ${products.length}টি পণ্য আছে। 😊\n\n${names}`;
-  }
-
-  if (/ডেলিভারি|delivery|কতদিন|কয়দিন|কয়দিন/.test(m)) {
-    return `ঢাকার মধ্যে ডেলিভারি সময় ${
-      settings?.deliveryTimeDhaka || "তথ্য পাওয়া যায়নি"
-    }, আর ঢাকার বাইরে ${
-      settings?.deliveryTimeOutside || "তথ্য পাওয়া যায়নি"
-    }। ডেলিভারি চার্জ ${money(
-      settings?.deliveryCharge || 0
-    )}।`;
-  }
-
-  if (/বিকাশ|পেমেন্ট|payment|টাকা.*দিব/.test(m)) {
-    return "বর্তমানে শুধু Cash on Delivery চালু আছে। পণ্য হাতে পাওয়ার পর টাকা দিতে পারবেন। 😊";
-  }
-
-  if (/রিটার্ন|ফেরত|return/.test(m)) {
-    return (
-      settings?.returnPolicy ||
-      "রিটার্ন পলিসির তথ্য বর্তমানে পাওয়া যাচ্ছে না।"
-    );
-  }
-
-  if (/দাম|price|কত টাকা/.test(m)) {
-    const sample = products
-      .slice(0, 5)
-      .map((p) => `${p.name} — ${money(p.price)}`)
-      .join("\n");
-
-    if (sample) {
-      return `কিছু পণ্যের দাম:\n${sample}\n\nনির্দিষ্ট পণ্যের নাম লিখে দাম জানতে পারেন।`;
-    }
-
-    return "বর্তমানে কোনো পণ্যের তথ্য পাওয়া যাচ্ছে না।";
-  }
-
-  return "আসসালামু আলাইকুম! 😊 আপনি পণ্যের নাম, দাম, ডেলিভারি, পেমেন্ট বা রিটার্ন সম্পর্কে জানতে পারেন।";
+function fallbackReply() {
+  // Gemini unavailable হলে কোনো robotic shop-menu message
+  // পাঠানো হবে না।
+  return "হুম, কথাটা ঠিক বুঝতে পারলাম না 😅 একটু অন্যভাবে বলবেন?";
 }
 
 // ======================================================
-// SEND MESSENGER REPLY
+// Send Messenger Reply
 // ======================================================
+
 async function sendMessengerReply(senderId, text) {
   if (!PAGE_ACCESS_TOKEN) {
     throw new Error("PAGE_ACCESS_TOKEN is missing.");
   }
 
-  if (!senderId) {
-    throw new Error("Messenger sender ID is missing.");
-  }
-
-  if (!text) {
-    throw new Error("Messenger reply text is empty.");
-  }
-
-  const url =
-    `https://graph.facebook.com/v21.0/me/messages` +
-    `?access_token=${encodeURIComponent(PAGE_ACCESS_TOKEN)}`;
-
-  console.log("📤 Sending reply to Facebook...");
-  console.log("👤 Sender ID exists:", Boolean(senderId));
-  console.log("🔑 Page access token exists:", Boolean(PAGE_ACCESS_TOKEN));
-  console.log("💬 Reply length:", String(text).length);
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      recipient: {
-        id: senderId,
+  const response = await fetch(
+    `https://graph.facebook.com/v21.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      messaging_type: "RESPONSE",
-      message: {
-        text: String(text).slice(0, 2000),
-      },
-    }),
-  });
+      body: JSON.stringify({
+        recipient: {
+          id: senderId,
+        },
+        message: {
+          text,
+        },
+      }),
+    }
+  );
 
-  const data = await response.json().catch(() => ({}));
-
-  console.log("📡 Facebook Messenger response:", {
-    status: response.status,
-    ok: response.ok,
-    data,
-  });
+  const data = await response.json();
 
   if (!response.ok) {
-    console.error("❌ FACEBOOK API ERROR DETAILS:", {
-      status: response.status,
-      statusText: response.statusText,
-      error: data?.error || data,
-    });
+    console.error("Facebook Messenger API error:", data);
 
     throw new Error(
-      `Facebook Messenger API failed: ${response.status} - ${
-        data?.error?.message ||
-        data?.error?.error_user_msg ||
-        JSON.stringify(data)
-      }`
+      `Facebook Messenger API failed: ${response.status}`
     );
   }
 
-  console.log("✅ Messenger reply sent successfully");
+  console.log("Messenger reply sent:", data);
 
   return data;
 }
 
 // ======================================================
-// RECEIVE MESSENGER WEBHOOK
+// Receive Messenger Messages
 // ======================================================
+
 export async function POST(req) {
   try {
-    console.log("====================================");
-    console.log("📩 Messenger webhook received");
-    console.log("====================================");
-
     const body = await req.json();
 
-    console.log("📦 Facebook object:", body?.object);
+    console.log("Messenger webhook received");
 
-    if (body?.object !== "page") {
-      console.log("⚠️ Request is not a Facebook page event.");
-
+    if (body.object !== "page") {
       return NextResponse.json(
         {
           status: "not_page",
@@ -343,39 +374,10 @@ export async function POST(req) {
       );
     }
 
-    // --------------------------------------------------
-    // CHECK ENVIRONMENT VARIABLES
-    // --------------------------------------------------
-
-    if (!PAGE_ACCESS_TOKEN) {
-      console.error("❌ PAGE_ACCESS_TOKEN is missing.");
-      return NextResponse.json(
-        {
-          status: "error",
-          message: "PAGE_ACCESS_TOKEN is missing",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    if (!VERIFY_TOKEN) {
-      console.error("❌ VERIFY_TOKEN is missing.");
-    }
-
-    if (!GEMINI_API_KEY) {
-      console.warn("⚠️ GEMINI_API_KEY is missing. Fallback will be used.");
-    }
-
-    // --------------------------------------------------
-    // DATABASE
-    // --------------------------------------------------
-
     const settings = await prisma.settings.findFirst();
 
     if (!settings) {
-      console.error("❌ Shop settings not found in database.");
+      console.error("Shop settings not found.");
 
       return NextResponse.json(
         {
@@ -392,103 +394,55 @@ export async function POST(req) {
       take: 40,
     });
 
-    console.log(`📦 Loaded ${products.length} products`);
+    for (const entry of body.entry || []) {
+      for (const event of entry.messaging || []) {
+        const senderId = event.sender?.id;
+        const messageText = event.message?.text;
 
-    // --------------------------------------------------
-    // PROCESS FACEBOOK EVENTS
-    // --------------------------------------------------
-
-    for (const entry of body?.entry || []) {
-      for (const event of entry?.messaging || []) {
-        const senderId = event?.sender?.id;
-        const messageText = event?.message?.text;
-
-        // Ignore events that are not text messages
+        // Text message না হলে ignore
         if (!senderId || !messageText) {
-          console.log("⚠️ Ignoring non-text Facebook event.");
           continue;
         }
 
-        console.log("====================================");
-        console.log("👤 Customer:", senderId);
-        console.log("💬 Message:", messageText);
-        console.log("====================================");
+        console.log("Customer:", messageText);
 
-        let reply = null;
+        let reply;
 
-        // ------------------------------------------------
-        // GEMINI
-        // ------------------------------------------------
-
-        if (GEMINI_API_KEY) {
-          try {
-            reply = await getGeminiReply(
-              messageText,
-              settings,
-              products
-            );
-          } catch (error) {
-            console.error("❌ Gemini failed:", error);
-          }
-        }
-
-        // ------------------------------------------------
-        // FALLBACK
-        // ------------------------------------------------
-
-        if (!reply) {
-          console.log("⚠️ Using fallback reply.");
-
-          reply = fallbackReply(
+        try {
+          reply = await getGeminiReply(
             messageText,
             settings,
             products
           );
-        }
-
-        console.log("💬 Final reply:", reply);
-
-        // ------------------------------------------------
-        // FACEBOOK SEND
-        // ------------------------------------------------
-
-        try {
-          await sendMessengerReply(senderId, reply);
         } catch (error) {
-          console.error(
-            "❌ Messenger send failed:",
-            error
-          );
+          console.error("Gemini failed:", error);
 
-          // Do not hide the real Facebook error
-          throw error;
+          reply = fallbackReply();
         }
+
+        console.log("Bot:", reply);
+
+        await sendMessengerReply(
+          senderId,
+          reply
+        );
       }
     }
-
-    console.log("====================================");
-    console.log("✅ Messenger webhook completed");
-    console.log("====================================");
 
     return NextResponse.json({
       status: "ok",
     });
   } catch (error) {
-    console.error("====================================");
-    console.error("❌ MESSENGER WEBHOOK ERROR");
-    console.error(error);
-    console.error("====================================");
+    console.error("Messenger webhook error:", error);
 
     return NextResponse.json(
       {
         status: "error",
-        message:
-          error?.message ||
-          "Webhook processing failed",
+        message: "Webhook processing failed",
       },
       {
         status: 500,
       }
     );
   }
-        }
+      }
