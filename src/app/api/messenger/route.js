@@ -6,10 +6,8 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-const GRAPH_API_VERSION = "v21.0";
-
 // ======================================================
-// FACEBOOK WEBHOOK VERIFICATION
+// Facebook Webhook Verification
 // ======================================================
 
 export async function GET(req) {
@@ -20,28 +18,18 @@ export async function GET(req) {
     const token = searchParams.get("hub.verify_token");
     const challenge = searchParams.get("hub.challenge");
 
-    console.log("Facebook webhook verification request");
-
-    if (
-      mode === "subscribe" &&
-      token &&
-      VERIFY_TOKEN &&
-      token === VERIFY_TOKEN
-    ) {
-      console.log("Webhook verification successful");
-
-      return new NextResponse(challenge, {
-        status: 200,
-      });
+    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+      console.log("✅ Facebook webhook verified");
+      return new NextResponse(challenge, { status: 200 });
     }
 
-    console.error("Webhook verification failed");
+    console.error("❌ Facebook webhook verification failed");
 
     return new NextResponse("Forbidden", {
       status: 403,
     });
   } catch (error) {
-    console.error("Webhook GET error:", error);
+    console.error("❌ Webhook GET error:", error);
 
     return new NextResponse("Server Error", {
       status: 500,
@@ -50,269 +38,479 @@ export async function GET(req) {
 }
 
 // ======================================================
-// GEMINI AI REPLY
+// Helpers
 // ======================================================
 
-async function getGeminiReply(message, settings, products) {
+function safeMoney(value) {
+  try {
+    return money(Number(value || 0));
+  } catch {
+    return `${Number(value || 0)} টাকা`;
+  }
+}
+
+function cleanText(value) {
+  if (!value) return "";
+
+  return String(value)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseJsonArray(value) {
+  if (!value) return [];
+
+  if (Array.isArray(value)) return value;
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return String(value)
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+}
+
+// ======================================================
+// Product Information
+// ======================================================
+
+function buildProductContext(products) {
+  if (!products || products.length === 0) {
+    return "বর্তমানে কোনো active product পাওয়া যায়নি।";
+  }
+
+  return products
+    .map((p, index) => {
+      const images = parseJsonArray(p.images);
+      const tags = parseJsonArray(p.tags);
+      const variants = parseJsonArray(p.variants);
+
+      const flashSale =
+        p.flashSalePrice && Number(p.flashSalePrice) > 0
+          ? `Flash Sale Price: ${safeMoney(p.flashSalePrice)}`
+          : "Flash Sale: নেই";
+
+      const stock =
+        Number(p.stock || 0) > 0
+          ? `${p.stock}টি available`
+          : "Out of stock";
+
+      return `
+PRODUCT ${index + 1}
+Name: ${p.name}
+Category: ${p.category || "N/A"}
+Regular Price: ${safeMoney(p.price)}
+MRP: ${safeMoney(p.mrp)}
+${flashSale}
+Stock: ${stock}
+Description: ${p.description || "N/A"}
+Specifications: ${p.specifications || "N/A"}
+Variants: ${variants.length ? variants.join(", ") : "N/A"}
+Tags: ${tags.length ? tags.join(", ") : "N/A"}
+Rating: ${p.rating || 0}
+Reviews: ${p.reviewCount || 0}
+Sold: ${p.sold || 0}
+Active: ${p.active ? "Yes" : "No"}
+Image: ${p.imageUrl || "N/A"}
+Video: ${p.videoUrl || "N/A"}
+`;
+    })
+    .join("\n-----------------------------\n");
+}
+
+// ======================================================
+// Website / Shop Context
+// ======================================================
+
+function buildShopContext(settings, products, coupons) {
+  const activeProducts = products.filter((p) => p.active);
+
+  const productContext = buildProductContext(activeProducts);
+
+  const couponContext =
+    coupons.length > 0
+      ? coupons
+          .map(
+            (c) =>
+              `Code: ${c.code} | Type: ${c.type} | Value: ${c.value} | Minimum Order: ${safeMoney(
+                c.minOrder
+              )} | Max Discount: ${
+                c.maxDiscount ? safeMoney(c.maxDiscount) : "No limit"
+              } | Active: ${c.active ? "Yes" : "No"}`
+          )
+          .join("\n")
+      : "বর্তমানে কোনো active coupon নেই।";
+
+  return `
+==================================================
+BESATI SHOP INFORMATION
+==================================================
+
+Shop name:
+${settings?.shopName || "Besati"}
+
+Website:
+https://besati.vercel.app
+
+Payment:
+বর্তমানে Cash on Delivery চালু আছে।
+
+bKash:
+${settings?.bkashNumber || "তথ্য দেওয়া নেই"}
+
+Nagad:
+${settings?.nagadNumber || "তথ্য দেওয়া নেই"}
+
+Delivery charge:
+${safeMoney(settings?.deliveryCharge)}
+
+Free delivery:
+${safeMoney(settings?.freeDeliveryOver)} বা তার বেশি অর্ডারে free delivery।
+
+Delivery time inside Dhaka:
+${settings?.deliveryTimeDhaka || "তথ্য দেওয়া নেই"}
+
+Delivery time outside Dhaka:
+${settings?.deliveryTimeOutside || "তথ্য দেওয়া নেই"}
+
+Return policy:
+${settings?.returnPolicy || "তথ্য দেওয়া নেই"}
+
+Loyalty coins:
+প্রতি ${safeMoney(100)} কেনাকাটায় ${
+    settings?.coinsPer100 || 0
+  } coins পাওয়া যায়।
+
+Gift coins required:
+${settings?.giftCoinsRequired || 0} coins।
+
+Gift product ID:
+${settings?.giftProductId || "N/A"}
+
+Facebook:
+${settings?.facebookUrl || "তথ্য দেওয়া নেই"}
+
+Featured video:
+${settings?.featuredVideoUrl || "তথ্য দেওয়া নেই"}
+
+==================================================
+ACTIVE PRODUCTS
+==================================================
+
+${productContext}
+
+==================================================
+ACTIVE COUPONS
+==================================================
+
+${couponContext}
+
+==================================================
+TOTAL ACTIVE PRODUCTS
+==================================================
+
+${activeProducts.length}
+`;
+}
+
+// ======================================================
+// Gemini AI
+// ======================================================
+
+async function getGeminiReply(message, settings, products, coupons) {
   if (!GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is missing.");
   }
 
-  const productLines =
-    products.length > 0
-      ? products
-          .map(
-            (p, index) =>
-              `${index + 1}. ${p.name} | Category: ${
-                p.category || "N/A"
-              } | Price: ${money(p.price)} | Stock: ${
-                Number(p.stock) > 0
-                  ? `${p.stock} available`
-                  : "Out of stock"
-              }`
-          )
-          .join("\n")
-      : "বর্তমানে কোনো পণ্য নেই।";
-
-  const shopName = settings?.shopName || "Besati";
-
-  const deliveryDhaka =
-    settings?.deliveryTimeDhaka || "তথ্য পাওয়া যায়নি";
-
-  const deliveryOutside =
-    settings?.deliveryTimeOutside || "তথ্য পাওয়া যায়নি";
-
-  const deliveryCharge = money(
-    settings?.deliveryCharge || 0
+  const shopContext = buildShopContext(
+    settings,
+    products,
+    coupons
   );
-
-  const freeDeliveryOver = money(
-    settings?.freeDeliveryOver || 0
-  );
-
-  const returnPolicy =
-    settings?.returnPolicy ||
-    "রিটার্ন পলিসির তথ্য বর্তমানে পাওয়া যাচ্ছে না।";
 
   const prompt = `
-তুমি "${shopName}" অনলাইন শপের Messenger customer support assistant।
+তুমি Besati অনলাইন শপের AI customer assistant।
 
-তোমার সবচেয়ে গুরুত্বপূর্ণ কাজ হলো একজন আসল দোকানের মানুষ যেভাবে কাস্টমারের সাথে স্বাভাবিকভাবে কথা বলে, সেভাবে কথা বলা।
+তোমার আচরণ একজন বাস্তব, ভদ্র, বুদ্ধিমান দোকানের মানুষের মতো হবে।
 
-========================
-ভাষা বোঝার নিয়ম
-========================
+সবচেয়ে গুরুত্বপূর্ণ বিষয়:
 
-কাস্টমার যেকোনোভাবে লিখতে পারে:
+কাস্টমার সবসময় পরিষ্কার ভাষায় কথা বলবে না।
 
-বাংলা:
-"তুমি কেমন আছো"
+কাস্টমার:
+- বাংলা লিখতে পারে
+- Banglish লিখতে পারে
+- English লিখতে পারে
+- বাংলা + English মিশিয়ে লিখতে পারে
+- ভুল বানান করতে পারে
+- শব্দ বাদ দিতে পারে
+- অসম্পূর্ণ sentence লিখতে পারে
+- keyboard mistake করতে পারে
+- একই কথা অন্যভাবে বলতে পারে
+- খুব ছোট করে প্রশ্ন করতে পারে
 
-Banglish:
+উদাহরণ:
+
 "Tumi kemon aso"
 "tumi kmn aso"
 "vai dam koto"
-"delivery koto din"
-"ki ki product ase"
-"product gula dekhao"
-"eta koto"
-"eta available?"
+"vai eta koto"
+"price?"
+"কত"
+"এইটার দাম"
+"delivery koi"
+"ঢাকার বাইরে?"
+"stock ase?"
+"ase naki"
+"ভাই এটা ভালো?"
+"কি কি আছে"
+"tomader ki ki product ase"
 
-English:
-"How are you?"
-"What is the price?"
-"Do you deliver?"
-"How long does delivery take?"
+এসব দেখে exact spelling নিয়ে আটকে থাকবে না।
 
-বাংলা + Banglish মিশিয়েও লিখতে পারে।
+কাস্টমার কী বোঝাতে চেয়েছে সেটা context থেকে বোঝার চেষ্টা করবে।
 
-তুমি এসবের অর্থ বুঝবে।
+--------------------------------------------------
 
-কাস্টমার Banglish-এ লিখলেও সাধারণত উত্তর বাংলায় দেবে।
+ভাষার নিয়ম:
 
-উদাহরণ:
+1. কাস্টমার Banglish লিখলেও তুমি সাধারণত বাংলায় উত্তর দেবে।
 
-Customer:
-"Tumi kemon aso"
+2. কাস্টমার English-এ প্রশ্ন করলে English-এ উত্তর দিতে পারো।
 
-Natural reply:
-"আলহামদুলিল্লাহ, ভালো আছি 😊 তুমি কেমন আছো?"
+3. কাস্টমার বাংলা + English মিশিয়ে লিখলে স্বাভাবিক বাংলা ভাষায় উত্তর দাও।
 
-Customer:
-"vai dam koto"
+4. খুব formal বা robotic ভাষা ব্যবহার করবে না।
 
-যদি নির্দিষ্ট পণ্য বোঝা যায়, সেই পণ্যের সঠিক দাম বলবে।
+5. এমনভাবে কথা বলবে যেন একজন ভালো দোকানের কর্মী Messenger-এ customer-এর সাথে কথা বলছে।
 
-Customer:
-"Why"
+6. অপ্রয়োজনীয়ভাবে "আসসালামু আলাইকুম" দিয়ে প্রতিটি উত্তর শুরু করবে না।
 
-প্রশ্নের context বুঝে উত্তর দেবে।
-Context না থাকলে স্বাভাবিকভাবে জিজ্ঞেস করবে:
-"কোন বিষয়টা জানতে চাচ্ছেন? 😊"
+7. প্রতিটি উত্তরে emoji দেওয়ার দরকার নেই।
 
-========================
-কথাবার্তার ধরন
-========================
+8. কাস্টমার friendly হলে তুমিও friendly হবে।
 
-রোবটের মতো কথা বলবে না।
+9. কাস্টমার "ভাই", "আপু", "bro" ইত্যাদি বললে context অনুযায়ী স্বাভাবিকভাবে উত্তর দিতে পারো।
 
-এই ধরনের উত্তর দেবে না:
+--------------------------------------------------
 
-"দুঃখিত, আপনার প্রশ্নটি বুঝতে সমস্যা হয়েছে।"
+CONVERSATION STYLE:
 
-"পণ্যের নাম, দাম, ডেলিভারি, পেমেন্ট বা রিটার্ন সম্পর্কে জানতে পারেন।"
+তোমার উত্তর হবে:
 
-"আপনি একটি সঠিক প্রশ্ন করুন।"
+স্বাভাবিক
+ছোট
+পরিষ্কার
+বন্ধুত্বপূর্ণ
+মানুষের মতো
 
-এর পরিবর্তে মানুষের মতো স্বাভাবিকভাবে কথা বলবে।
+একজন customer যদি বলে:
 
-যদি কোনো প্রশ্ন সত্যিই বুঝতে না পারো, context অনুযায়ী ছোট করে বলবে।
+"ভাই দাম কত"
 
-উদাহরণ:
+তাহলে context অনুযায়ী product শনাক্ত করতে পারলে সরাসরি দাম বলবে।
 
-"একটু বুঝিয়ে বলবেন? 😊"
+যদি product কোনটি বোঝা না যায়, তাহলে খুব স্বাভাবিকভাবে জিজ্ঞেস করবে:
 
-"আপনি কোন পণ্যটার কথা বলছেন?"
+"অবশ্যই 😊 কোন পণ্যটার দাম জানতে চাচ্ছেন? নামটা বললে আমি দেখে দিচ্ছি।"
 
-"কোন বিষয়টা জানতে চাচ্ছেন?"
+এ ধরনের natural clarification ব্যবহার করবে।
 
-"হুম, একটু পরিষ্কার করে বলবেন? 😊"
+কখনো বলবে না:
 
-একই বাক্য বারবার ব্যবহার করবে না।
+"আপনার প্রশ্নটি বুঝতে সমস্যা হয়েছে।"
 
-========================
-সাধারণ কথাবার্তা
-========================
+"অনুগ্রহ করে পুনরায় চেষ্টা করুন।"
 
-Customer:
+"শুধুমাত্র নির্দিষ্ট command ব্যবহার করুন।"
+
+"ডেলিভারি, পেমেন্ট, রিটার্ন লিখুন।"
+
+এগুলো robotic।
+
+--------------------------------------------------
+
+PRODUCT RULES:
+
+শুধুমাত্র database-এর product information ব্যবহার করবে।
+
+নিজে থেকে product, price, stock, discount বা offer বানাবে না।
+
+কোনো product-এর stock 0 হলে available বলবে না।
+
+কোনো product-এর flash sale price থাকলে customer price জানতে চাইলে current sale price উল্লেখ করতে পারো।
+
+Regular price এবং MRP-এর পার্থক্য থাকলে সেটা বুঝিয়ে বলতে পারো।
+
+Customer যদি জিজ্ঞেস করে:
+
+"কি কি আছে"
+"কি কি product"
+"products দেখাও"
+"কি বিক্রি করেন"
+"tomader ki ki ase"
+
+তাহলে database-এর active products-এর নাম সুন্দরভাবে দেখাবে।
+
+Customer যদি জিজ্ঞেস করে:
+
+"কয়টা product আছে"
+
+তাহলে active product-এর সংখ্যা বলবে।
+
+Customer যদি কোনো product-এর নামের ভুল spelling করে, কাছাকাছি product name থাকলে সেটি বুঝে নেওয়ার চেষ্টা করবে।
+
+--------------------------------------------------
+
+PRODUCT RECOMMENDATION:
+
+Customer যদি বলে:
+
+"ভালো একটা earbuds দেখাও"
+"1000 টাকার মধ্যে কিছু আছে?"
+"কম দামের speaker আছে?"
+"best product কোনটা?"
+
+তাহলে database-এর product থেকে relevant product suggest করবে।
+
+নিজে থেকে product তৈরি করবে না।
+
+--------------------------------------------------
+
+DELIVERY:
+
+Customer delivery সম্পর্কে জানতে চাইলে shop information ব্যবহার করবে।
+
+ঢাকা এবং ঢাকার বাইরে আলাদা সময় বলবে।
+
+Free delivery-এর threshold থাকলে সেটা বলবে।
+
+--------------------------------------------------
+
+PAYMENT:
+
+Database-এ যা আছে সেটাই বলবে।
+
+বর্তমানে Cash on Delivery available।
+
+bKash/Nagad number database-এ থাকলে customer specifically payment number চাইলে দিতে পারো।
+
+কোনো payment method নিজের থেকে বানাবে না।
+
+--------------------------------------------------
+
+RETURN:
+
+Customer return/refund/exchange সম্পর্কে জিজ্ঞেস করলে database-এর return policy ব্যবহার করবে।
+
+নিজে থেকে policy তৈরি করবে না।
+
+--------------------------------------------------
+
+COUPON:
+
+Active coupon থাকলে customer জানতে চাইলে code এবং applicable condition জানাবে।
+
+Inactive বা expired coupon active বলে বলবে না।
+
+--------------------------------------------------
+
+LOYALTY COINS:
+
+Customer coins সম্পর্কে জানতে চাইলে settings-এর coinsPer100 এবং giftCoinsRequired ব্যবহার করবে।
+
+--------------------------------------------------
+
+GENERAL CONVERSATION:
+
+Customer যদি বলে:
+
 "হ্যালো"
-
-Reply:
-"হ্যালো! 😊 কেমন আছেন?"
-
-Customer:
-"Hi"
-
-Reply:
-"হ্যালো! 😊 কেমন আছেন?"
-
-Customer:
-"Tumi kemon aso"
-
-Reply:
-"আলহামদুলিল্লাহ, ভালো আছি 😊 তুমি কেমন আছো?"
-
-Customer:
-"ভালো"
-
-Reply:
-"আলহামদুলিল্লাহ 😊 কীভাবে সাহায্য করতে পারি?"
-
-Customer:
+"hi"
+"hello"
+"assalamualaikum"
+"কেমন আছো"
+"কি খবর"
+"ধন্যবাদ"
 "thanks"
-
-Reply:
-"স্বাগতম 😊"
-
-Customer:
 "ভাই"
 
-Reply:
-"জি ভাই 😊 বলুন।"
+তাহলে সাধারণ মানুষের মতো উত্তর দেবে।
 
-========================
-দোকানের তথ্য
-========================
+Customer যদি বলে:
 
-Shop:
-${shopName}
+"Tumi kemon aso"
 
-Payment:
-শুধু Cash on Delivery চালু আছে।
+তাহলে:
 
-Delivery Dhaka:
-${deliveryDhaka}
+"আলহামদুলিল্লাহ, ভালো আছি 😊 তুমি কেমন আছো?"
 
-Delivery outside Dhaka:
-${deliveryOutside}
+এরকম natural উত্তর দিতে পারো।
 
-Delivery charge:
-${deliveryCharge}
+কিন্তু প্রতিবার একই উত্তর ব্যবহার করবে না।
 
-Free delivery:
-${freeDeliveryOver} টাকার বেশি অর্ডারে ফ্রি ডেলিভারি।
+--------------------------------------------------
 
-Return policy:
-${returnPolicy}
+UNCLEAR MESSAGE:
 
-========================
-PRODUCT LIST
-========================
+যদি customer-এর কথা একদম পরিষ্কার না হয়, তবুও robotic fallback ব্যবহার করবে না।
 
-${productLines}
+প্রথমে context থেকে বোঝার চেষ্টা করবে।
 
-মোট পণ্য:
-${products.length}
+না পারলে খুব স্বাভাবিকভাবে clarification চাইবে।
 
-========================
-PRODUCT RULES
-========================
+উদাহরণ:
 
-1. শুধু উপরের product list ব্যবহার করবে।
+"হুম, একটু বুঝিয়ে বলবেন? 😊"
 
-2. তালিকায় নেই এমন পণ্য বানিয়ে বলবে না।
+অথবা
 
-3. কোনো পণ্যের দাম নিজে থেকে অনুমান করবে না।
+"কোন জিনিসটার কথা বলছেন একটু বলবেন?"
 
-4. Stock 0 হলে available বলবে না।
+কিন্তু প্রতিবার একই sentence ব্যবহার করবে না।
 
-5. Customer যদি "কি কি product আছে", "ki ki product ase", "products dekhao", "what do you sell" ইত্যাদি জিজ্ঞেস করে, product list থেকে পণ্যের নামগুলো দেখাবে।
+--------------------------------------------------
 
-6. Customer কোনো নির্দিষ্ট পণ্যের দাম জিজ্ঞেস করলে সেই পণ্যের সঠিক দাম বলবে।
+IMPORTANT:
 
-7. Customer কোনো পণ্যের নাম একটু ভুল লিখলে বা Banglish-এ লিখলে context অনুযায়ী কাছাকাছি পণ্য খুঁজে বোঝার চেষ্টা করবে।
+কাস্টমারের প্রশ্নের উত্তর database-এর তথ্যের ভিত্তিতে দেবে।
 
-8. Customer যদি সাধারণ কথাবার্তা বলে, তাকে product list দেখিয়ে বিরক্ত করবে না।
+Database-এ তথ্য না থাকলে সেটা সত্যি করে বলবে।
 
-9. Customer যদি শুধু "হাই", "হ্যালো", "ভাই", "কেমন আছো", "Tumi kemon aso" ইত্যাদি বলে, স্বাভাবিক কথোপকথন করবে।
+কোনো তথ্য বানিয়ে বলবে না।
 
-10. উত্তর সাধারণত ছোট রাখবে। প্রয়োজন না হলে বড় paragraph লিখবে না।
+নিজেকে AI বলে পরিচয় দেওয়ার দরকার নেই, যদি না customer সরাসরি জিজ্ঞেস করে।
 
-11. সাধারণত 1-5টি ছোট বাক্য যথেষ্ট।
+--------------------------------------------------
 
-12. প্রয়োজনে অল্প emoji ব্যবহার করতে পারো।
+SHOP DATA:
 
-13. Customer-এর ভাষা বুঝবে, কিন্তু উত্তর সাধারণত পরিষ্কার বাংলায় দেবে।
+${shopContext}
 
-14. Customer Banglish লিখেছে বলে Banglish-এ উত্তর দেওয়া বাধ্যতামূলক নয়।
+--------------------------------------------------
 
-========================
-IMPORTANT
-========================
-
-তুমি একটি AI robot হিসেবে নিজের পরিচয় দিয়ে কথা বলবে না।
-
-"আমি একটি AI"
-
-"আমি একটি chatbot"
-
-"আমি আপনার virtual assistant"
-
-এই ধরনের কথা বলবে না, যদি না customer সরাসরি জিজ্ঞেস করে।
-
-নিজেকে দোকানের customer support হিসেবে স্বাভাবিকভাবে উপস্থাপন করবে।
-
-========================
-CUSTOMER MESSAGE
-========================
+CURRENT CUSTOMER MESSAGE:
 
 ${message}
+
+এখন customer-এর কথার অর্থ বুঝে সবচেয়ে natural এবং helpful উত্তর দাও।
 `;
 
-  console.log("Sending message to Gemini:", message);
+  console.log("====================================");
+  console.log("🤖 GEMINI REQUEST");
+  console.log("Question:", message);
+  console.log("API key exists:", Boolean(GEMINI_API_KEY));
+  console.log("Products:", products.length);
+  console.log("Coupons:", coupons.length);
+  console.log("====================================");
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
+      GEMINI_API_KEY
+    )}`,
     {
       method: "POST",
       headers: {
@@ -331,7 +529,7 @@ ${message}
         ],
         generationConfig: {
           temperature: 0.8,
-          maxOutputTokens: 300,
+          maxOutputTokens: 600,
         },
       }),
     }
@@ -340,135 +538,102 @@ ${message}
   const data = await response.json();
 
   if (!response.ok) {
-    console.error("Gemini API ERROR:", {
-      status: response.status,
-      statusText: response.statusText,
-      data,
-    });
+    console.error("❌ GEMINI API ERROR");
+    console.error("Status:", response.status);
+    console.error("Response:", JSON.stringify(data));
 
     throw new Error(
-      `Gemini API failed: ${response.status}`
+      `Gemini API failed: ${response.status} - ${
+        data?.error?.message || "Unknown Gemini error"
+      }`
     );
   }
 
-  const text =
-    data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  const text = data?.candidates?.[0]?.content?.parts
+    ?.map((part) => part?.text || "")
+    .join("")
+    .trim();
 
   if (!text) {
-    console.error("Gemini returned empty response:", data);
+    console.error(
+      "❌ Gemini returned empty response:",
+      JSON.stringify(data)
+    );
 
     throw new Error("Gemini returned empty response.");
   }
 
-  console.log("Gemini reply received.");
+  console.log("✅ Gemini reply:", text);
 
   return text;
 }
 
 // ======================================================
-// NATURAL FALLBACK
+// Natural fallback
 // ======================================================
 
-function fallbackReply(message, settings, products) {
-  const text = String(message || "").toLowerCase().trim();
+function naturalFallback(message, settings, products) {
+  const text = cleanText(message).toLowerCase();
 
-  // Greeting
   if (
-    /^(hi|hello|hey|হাই|হ্যালো|সালাম|আসসালামু আলাইকুম|assalamu alaikum)$/.test(
+    /দাম|কত টাকা|price|how much|dam|koto|koto taka/.test(
       text
     )
   ) {
-    return "হ্যালো! 😊 কেমন আছেন?";
+    return "অবশ্যই 😊 কোন পণ্যটার দাম জানতে চাচ্ছেন? পণ্যের নামটা বললে আমি দেখে দিচ্ছি।";
   }
 
-  // How are you - Bengali / Banglish
   if (
-    /কেমন আছ|কেমন আছেন|tumi kemon aso|tumi kmn aso|kmn aso|kemon aso|how are you/.test(
+    /delivery|ডেলিভারি|কয়দিন|কয়দিন|কতদিন|koydin|koidin/.test(
       text
     )
   ) {
-    return "আলহামদুলিল্লাহ, ভালো আছি 😊 আপনি কেমন আছেন?";
+    return `অবশ্যই। ঢাকার মধ্যে সাধারণত ${
+      settings?.deliveryTimeDhaka || "তথ্য পাওয়া যায়নি"
+    }, আর ঢাকার বাইরে ${
+      settings?.deliveryTimeOutside || "তথ্য পাওয়া যায়নি"
+    } সময় লাগে।`;
   }
 
-  // Thanks
   if (
-    /ধন্যবাদ|thanks|thank you|thx|ty/.test(text)
-  ) {
-    return "স্বাগতম ভাই 😊";
-  }
-
-  // Delivery
-  if (
-    /ডেলিভারি|delivery|deliver|কতদিন|কয়দিন|কয়দিন|how long/.test(
+    /hello|hi|হ্যালো|হাই|আসসালাম|assalam|salam/.test(
       text
     )
   ) {
-    return `ঢাকার মধ্যে ডেলিভারি ${settings?.deliveryTimeDhaka || "তথ্য পাওয়া যায়নি"} এবং ঢাকার বাইরে ${settings?.deliveryTimeOutside || "তথ্য পাওয়া যায়নি"}। ডেলিভারি চার্জ ${money(settings?.deliveryCharge || 0)}। 😊`;
+    return "ওয়ালাইকুম আসসালাম 😊 কীভাবে সাহায্য করতে পারি?";
   }
 
-  // Payment
   if (
-    /বিকাশ|নগদ|পেমেন্ট|payment|pay|টাকা.*দিব|cash on delivery|cod/.test(
+    /ধন্যবাদ|thanks|thank you|tnx|thnx/.test(text)
+  ) {
+    return "অবশ্যই 😊";
+  }
+
+  if (
+    /কেমন আছ|kmn aso|kemon aso|how are you/.test(text)
+  ) {
+    return "আলহামদুলিল্লাহ, ভালো আছি 😊 তুমি কেমন আছো?";
+  }
+
+  if (
+    /কি আছে|কী আছে|কি কি|কী কী|products|product|কি বিক্রি|কি বিক্রি করেন|ki ki|ki ase/.test(
       text
     )
   ) {
-    return "বর্তমানে Cash on Delivery চালু আছে। পণ্য হাতে পাওয়ার পর টাকা দিতে পারবেন। 😊";
-  }
+    const activeProducts = products.filter((p) => p.active);
 
-  // Return
-  if (
-    /রিটার্ন|ফেরত|return|replace|exchange/.test(text)
-  ) {
-    return (
-      settings?.returnPolicy ||
-      "রিটার্ন পলিসির তথ্য বর্তমানে পাওয়া যাচ্ছে না।"
-    );
-  }
-
-  // Product count / list
-  if (
-    /কয়টি|কয়টি|কতটি|কতগুলো|কত গুলো|কি কি|কী কী|কি কি আছে|কী কী আছে|products|product list|product gula|ki ki product|ki ki ase|what do you sell/.test(
-      text
-    )
-  ) {
-    if (products.length === 0) {
-      return "এই মুহূর্তে কোনো পণ্য তালিকায় নেই।";
+    if (!activeProducts.length) {
+      return "এই মুহূর্তে product list থেকে কিছু দেখাতে পারছি না।";
     }
 
-    const names = products
-      .slice(0, 20)
-      .map((p, index) => `${index + 1}. ${p.name}`)
-      .join("\n");
-
-    return `আমাদের এখন ${products.length}টি পণ্য আছে 😊\n\n${names}`;
+    return `আমাদের কয়েকটা product আছে 😊 কোন ধরনের পণ্য খুঁজছেন বললে আমি সাজেস্ট করতে পারি।`;
   }
 
-  // Price
-  if (
-    /দাম|price|কত টাকা|koto taka|dam koto|দাম কত|how much/.test(
-      text
-    )
-  ) {
-    if (products.length === 0) {
-      return "এই মুহূর্তে পণ্যের তথ্য পাওয়া যাচ্ছে না।";
-    }
-
-    const sample = products
-      .slice(0, 5)
-      .map(
-        (p) => `${p.name} — ${money(p.price)}`
-      )
-      .join("\n");
-
-    return `কিছু পণ্যের দাম দিচ্ছি 😊\n\n${sample}\n\nকোনো নির্দিষ্ট পণ্যের দাম জানতে চাইলে নামটা লিখে দিন।`;
-  }
-
-  // Natural unknown fallback
-  return "হুম 😊 একটু বুঝিয়ে বলবেন? আপনি কী জানতে চাচ্ছেন?";
+  return "হুম 😊 একটু বিস্তারিত বলবেন? তাহলে ঠিকভাবে সাহায্য করতে পারব।";
 }
 
 // ======================================================
-// SEND MESSAGE TO FACEBOOK MESSENGER
+// Send Messenger Reply
 // ======================================================
 
 async function sendMessengerReply(senderId, text) {
@@ -480,52 +645,63 @@ async function sendMessengerReply(senderId, text) {
     throw new Error("Messenger sender ID is missing.");
   }
 
-  if (!text) {
-    throw new Error("Messenger reply text is empty.");
-  }
+  const cleanReply =
+    cleanText(text) ||
+    "একটু সময় দিন, আপনার কথাটা বুঝে উত্তর দিচ্ছি। 😊";
 
-  const url =
-    `https://graph.facebook.com/${GRAPH_API_VERSION}/me/messages` +
-    `?access_token=${encodeURIComponent(PAGE_ACCESS_TOKEN)}`;
+  console.log("====================================");
+  console.log("📤 FACEBOOK SEND MESSAGE");
+  console.log("Sender ID exists:", Boolean(senderId));
+  console.log(
+    "PAGE_ACCESS_TOKEN exists:",
+    Boolean(PAGE_ACCESS_TOKEN)
+  );
+  console.log("Message:", cleanReply);
+  console.log("====================================");
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      recipient: {
-        id: senderId,
+  const response = await fetch(
+    `https://graph.facebook.com/v21.0/me/messages?access_token=${encodeURIComponent(
+      PAGE_ACCESS_TOKEN
+    )}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      message: {
-        text: String(text).slice(0, 2000),
-      },
-    }),
-  });
+      body: JSON.stringify({
+        recipient: {
+          id: senderId,
+        },
+        message: {
+          text: cleanReply,
+        },
+      }),
+    }
+  );
 
-  const data = await response.json().catch(() => ({}));
+  const data = await response.json();
 
   if (!response.ok) {
-    // IMPORTANT:
-    // Facebook's real error will now appear in Vercel logs.
-    console.error("FACEBOOK MESSENGER API ERROR:", {
-      status: response.status,
-      statusText: response.statusText,
-      response: data,
-    });
+    console.error("====================================");
+    console.error("❌ FACEBOOK GRAPH API ERROR");
+    console.error("HTTP Status:", response.status);
+    console.error("Response:", JSON.stringify(data));
+    console.error("====================================");
 
     throw new Error(
-      `Facebook Messenger API failed: ${response.status}`
+      `Facebook Messenger API failed: ${response.status} - ${
+        data?.error?.message || "Unknown Facebook error"
+      }`
     );
   }
 
-  console.log("Facebook message sent successfully:", data);
+  console.log("✅ Facebook message sent:", JSON.stringify(data));
 
   return data;
 }
 
 // ======================================================
-// RECEIVE FACEBOOK MESSENGER WEBHOOK
+// Receive Messenger Messages
 // ======================================================
 
 export async function POST(req) {
@@ -533,12 +709,11 @@ export async function POST(req) {
     const body = await req.json();
 
     console.log("====================================");
-    console.log("Messenger webhook received");
+    console.log("📩 FACEBOOK WEBHOOK RECEIVED");
+    console.log("Object:", body?.object);
     console.log("====================================");
 
     if (body?.object !== "page") {
-      console.log("Not a Facebook page event.");
-
       return NextResponse.json(
         {
           status: "not_page",
@@ -549,10 +724,14 @@ export async function POST(req) {
       );
     }
 
+    // --------------------------------------------------
+    // Database
+    // --------------------------------------------------
+
     const settings = await prisma.settings.findFirst();
 
     if (!settings) {
-      console.error("Shop settings not found.");
+      console.error("❌ Settings not found.");
 
       return NextResponse.json(
         {
@@ -566,92 +745,112 @@ export async function POST(req) {
     }
 
     const products = await prisma.product.findMany({
-      take: 40,
+      where: {
+        active: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 100,
     });
 
-    console.log("Products loaded:", products.length);
+    const coupons = await prisma.coupon.findMany({
+      where: {
+        active: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 50,
+    });
 
-    for (const entry of body.entry || []) {
-      for (const event of entry.messaging || []) {
-        // Ignore Facebook delivery/read events
-        if (
-          event.delivery ||
-          event.read ||
-          event.reaction
-        ) {
-          continue;
-        }
+    console.log("📦 Products loaded:", products.length);
+    console.log("🎟️ Coupons loaded:", coupons.length);
 
-        // Ignore messages sent by the page itself
-        if (event.message?.is_echo === true) {
-          console.log("Ignoring echo message.");
-          continue;
-        }
+    // --------------------------------------------------
+    // Messenger Events
+    // --------------------------------------------------
 
-        const senderId = event.sender?.id;
-        const messageText = event.message?.text;
+    for (const entry of body?.entry || []) {
+      for (const event of entry?.messaging || []) {
+        const senderId = event?.sender?.id;
+        const messageText = event?.message?.text;
 
+        // Ignore events without text
         if (!senderId || !messageText) {
-          console.log("No sender ID or text. Skipping.");
           continue;
         }
 
-        console.log("Customer:", senderId);
-        console.log("Message:", messageText);
-
-        let reply = null;
-
-        // Try Gemini
-        try {
-          if (GEMINI_API_KEY) {
-            reply = await getGeminiReply(
-              messageText,
-              settings,
-              products
-            );
-          }
-        } catch (error) {
-          console.error("Gemini failed:", error);
+        // Ignore Facebook echo messages
+        if (event?.message?.is_echo) {
+          console.log("↩️ Ignoring echo message.");
+          continue;
         }
 
-        // Fallback only if Gemini failed
-        if (!reply) {
-          console.log("Using natural fallback.");
-          reply = fallbackReply(
-            messageText,
+        const customerMessage = cleanText(messageText);
+
+        if (!customerMessage) {
+          continue;
+        }
+
+        console.log("====================================");
+        console.log("👤 CUSTOMER:", customerMessage);
+        console.log("SENDER ID:", senderId);
+        console.log("====================================");
+
+        let reply;
+
+        // ------------------------------------------------
+        // Gemini
+        // ------------------------------------------------
+
+        try {
+          reply = await getGeminiReply(
+            customerMessage,
+            settings,
+            products,
+            coupons
+          );
+        } catch (geminiError) {
+          console.error("❌ GEMINI FAILED:");
+          console.error(geminiError);
+
+          reply = naturalFallback(
+            customerMessage,
             settings,
             products
           );
         }
 
-        console.log("Reply:", reply);
+        // ------------------------------------------------
+        // Send Facebook reply
+        // ------------------------------------------------
 
-        // Send reply
         try {
           await sendMessengerReply(
             senderId,
             reply
           );
-        } catch (error) {
-          console.error(
-            "Could not send Messenger reply:",
-            error
-          );
+        } catch (facebookError) {
+          console.error("❌ FACEBOOK SEND FAILED:");
+          console.error(facebookError);
 
-          // Do not hide the Facebook error.
-          throw error;
+          // Do not crash silently.
+          // Return 200 to Facebook so webhook delivery
+          // does not repeatedly retry the same event.
+          continue;
         }
       }
     }
 
-    console.log("Messenger webhook completed.");
+    console.log("✅ Webhook processing completed.");
 
     return NextResponse.json({
       status: "ok",
     });
   } catch (error) {
     console.error("====================================");
-    console.error("MESSENGER WEBHOOK ERROR");
+    console.error("❌ MESSENGER WEBHOOK ERROR");
     console.error(error);
     console.error("====================================");
 
@@ -665,4 +864,4 @@ export async function POST(req) {
       }
     );
   }
-  }
+                                            }
