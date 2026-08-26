@@ -21,6 +21,22 @@ async function saveImagePermanently(url) {
   }
 }
 
+async function sendToSheet(product) {
+  try {
+    await fetch("https://hook.us2.make.com/la0473z41dqxfoughpfqtlu1w6yrjsmb", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: product.name,
+        price: product.price,
+        url: `https://besati.vercel.app/product/${product.slug || product.id}`,
+        description: product.description,
+        stock: product.stock,
+      }),
+    });
+  } catch (e) {}
+}
+
 export async function GET(_req, { params }) {
   const product = await prisma.product.findUnique({
     where: { id: params.id },
@@ -41,7 +57,6 @@ export async function PUT(req, { params }) {
   }
   const body = await req.json();
 
-  // ছবি স্থায়ীভাবে সেভ করা (বাইরের লিংক নষ্ট হয়ে গেলেও ছবি হারাবে না)
   const savedImageUrl = body.imageUrl && body.imageUrl.trim() ? await saveImagePermanently(body.imageUrl.trim()) : null;
 
   const product = await prisma.product.update({
@@ -66,6 +81,9 @@ export async function PUT(req, { params }) {
       description: body.description || "",
     },
   });
+
+  await sendToSheet(product);
+
   return NextResponse.json(product);
 }
 
@@ -76,4 +94,4 @@ export async function DELETE(_req, { params }) {
   }
   await prisma.product.delete({ where: { id: params.id } });
   return NextResponse.json({ success: true });
-}
+                              }
