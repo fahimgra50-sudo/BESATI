@@ -14,15 +14,12 @@ function slugify(text) {
     .replace(/^-+|-+$/g, "");
 }
 
-// বাইরের কোনো ইমেজ লিংক থেকে ছবি ডাউনলোড করে, আমাদের নিজের Blob storage-এ স্থায়ীভাবে সেভ করে
-// এতে বাইরের লিংক পরে নষ্ট/মেয়াদোত্তীর্ণ হলেও আমাদের সাইটে ছবি ঠিকই থেকে যাবে
 async function saveImagePermanently(url) {
   if (!url || !url.trim()) return url;
-  // যদি ইতিমধ্যে আমাদের নিজের blob স্টোরেজের লিংক হয়, তাহলে আবার ডাউনলোড করার দরকার নেই
   if (url.includes("blob.vercel-storage.com")) return url;
   try {
     const res = await fetch(url);
-    if (!res.ok) return url; // ডাউনলোড ব্যর্থ হলে, আগের লিংকটাই ফেরত দাও (একদম বন্ধ না করে)
+    if (!res.ok) return url;
     const buffer = await res.arrayBuffer();
     const contentType = res.headers.get("content-type") || "image/jpeg";
     const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : contentType.includes("gif") ? "gif" : "jpg";
@@ -30,8 +27,24 @@ async function saveImagePermanently(url) {
     const blob = await put(filename, buffer, { access: "public", contentType });
     return blob.url;
   } catch (e) {
-    return url; // কোনো সমস্যা হলে, আগের লিংকটাই ফেরত দাও
+    return url;
   }
+}
+
+async function sendToSheet(product) {
+  try {
+    await fetch("https://hook.us2.make.com/la0473z41dqxfoughpfqtlu1w6yrjsmb", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: product.name,
+        price: product.price,
+        url: `https://besati.vercel.app/product/${product.slug || product.id}`,
+        description: product.description,
+        stock: product.stock,
+      }),
+    });
+  } catch (e) {}
 }
 
 export async function GET(req) {
@@ -70,7 +83,6 @@ export async function POST(req) {
     counter++;
   }
 
-  // ছবি ও ভিডিও লিংক নিজের storage-এ সেভ করা (ব্যর্থ হলে আগের লিংক থেকে যাবে)
   const savedImageUrl = body.imageUrl && body.imageUrl.trim() ? await saveImagePermanently(body.imageUrl.trim()) : null;
 
   const product = await prisma.product.create({
@@ -95,5 +107,8 @@ export async function POST(req) {
       description: body.description || "",
     },
   });
+
+  await sendToSheet(product);
+
   return NextResponse.json(product, { status: 201 });
-}
+      }
