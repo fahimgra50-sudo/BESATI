@@ -32,6 +32,7 @@ async function sendToSheet(product) {
         url: `https://besati.vercel.app/product/${product.slug || product.id}`,
         description: product.description,
         stock: product.stock,
+        category: product.category,
       }),
     });
   } catch (e) {}
