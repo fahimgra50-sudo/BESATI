@@ -33,7 +33,7 @@ async function saveImagePermanently(url) {
 
 async function sendToSheet(product) {
   try {
-    await fetch("https://hook.us2.make.com/la0473z41dqxfoughpfqtlu1w6yrjsmb", {
+    await fetch("https://hook.eu1.make.com/y21dn5hw6in2swesxk4flxe6ty2ocl92", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
