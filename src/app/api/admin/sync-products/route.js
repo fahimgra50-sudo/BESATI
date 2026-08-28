@@ -55,9 +55,21 @@ async function fetchAllSupplierProducts(apiKey, secretKey) {
   return all;
 }
 
+// GET দিয়ে ব্রাউজারে লিংক পেস্ট করেও টেস্ট/সিঙ্ক করা যাবে:
+// https://besati.vercel.app/api/admin/sync-products?key=আপনার_SYNC_ADMIN_KEY
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const adminKey = searchParams.get("key");
+  return runSync(adminKey);
+}
+
 export async function POST(request) {
-  // সুরক্ষা: শুধু সঠিক admin key দিয়ে কল করলেই কাজ করবে
   const adminKey = request.headers.get("x-admin-key");
+  return runSync(adminKey);
+}
+
+async function runSync(adminKey) {
+  // সুরক্ষা: শুধু সঠিক admin key দিয়ে কল করলেই কাজ করবে
   if (!process.env.SYNC_ADMIN_KEY || adminKey !== process.env.SYNC_ADMIN_KEY) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -145,4 +157,4 @@ export async function POST(request) {
     skipped,
     errors,
   });
-      }
+  }
