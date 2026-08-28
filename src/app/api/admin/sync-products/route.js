@@ -9,6 +9,9 @@
 
 import { PrismaClient } from "@prisma/client";
 
+// Vercel-কে বলে দেয় এই ফাংশনটাকে বেশি সময় (৬০ সেকেন্ড) চলতে দিতে
+export const maxDuration = 60;
+
 const prisma = new PrismaClient();
 
 const SUPPLIER_BASE = "https://mohasagor.com.bd";
@@ -96,57 +99,78 @@ async function runSync(adminKey) {
   let skipped = 0;
   const errors = [];
 
-  for (const sp of supplierProducts) {
-    try {
-      const supplierCode = String(sp.product_code ?? sp.id);
+  // একসাথে ২০টা করে প্রোডাক্ট প্রসেস করা হচ্ছে, একটার পর একটা না করে —
+  // এতে অনেক প্রোডাক্ট থাকলেও দ্রুত শেষ হবে
+  const BATCH_SIZE = 20;
 
-      const images = (sp.product_image ?? [])
-        .map((img) => buildImageUrl(img.product_image))
-        .filter(Boolean);
+  async function processProduct(sp) {
+    const supplierCode = String(sp.product_code ?? sp.id);
 
-      const thumbnail = buildImageUrl(sp.thumbnail_img) || images[0] || null;
+    const images = (sp.product_image ?? [])
+      .map((img) => buildImageUrl(img.product_image))
+      .filter(Boolean);
 
-      const payload = {
-        name: sp.name,
-        category: String(sp.category_id ?? "সাপ্লায়ার"),
-        // sale_price = কাস্টমারের কাছে বিক্রির দাম
-        price: Number(sp.sale_price ?? sp.price ?? 0),
-        // reselling_price = কাটাকাটা দেখানোর দাম (higher, strikethrough)
-        mrp: Number(sp.reselling_price ?? sp.price ?? 0),
-        // সাপ্লায়ারের নিজের দাম (cost)
-        costPrice: Number(sp.price ?? 0),
-        supplierPrice: Number(sp.price ?? 0),
-        supplierCode,
-        supplierUrl: `${SUPPLIER_BASE}/product/${sp.slug ?? sp.id}`,
-        description: sp.details ?? "",
-        imageUrl: thumbnail,
-        images: images.join(","),
-        variants: JSON.stringify(sp.product_variant ?? []),
-      };
+    const thumbnail = buildImageUrl(sp.thumbnail_img) || images[0] || null;
 
-      // supplierCode দিয়ে আগের প্রোডাক্ট খোঁজা হচ্ছে (ডুপ্লিকেট এড়াতে)
-      const existing = await prisma.product.findFirst({
-        where: { supplierCode },
+    const payload = {
+      name: sp.name,
+      category: String(sp.category_id ?? "সাপ্লায়ার"),
+      // sale_price = কাস্টমারের কাছে বিক্রির দাম
+      price: Number(sp.sale_price ?? sp.price ?? 0),
+      // reselling_price = কাটাকাটা দেখানোর দাম (higher, strikethrough)
+      mrp: Number(sp.reselling_price ?? sp.price ?? 0),
+      // সাপ্লায়ারের নিজের দাম (cost)
+      costPrice: Number(sp.price ?? 0),
+      supplierPrice: Number(sp.price ?? 0),
+      supplierCode,
+      supplierUrl: `${SUPPLIER_BASE}/product/${sp.slug ?? sp.id}`,
+      description: sp.details ?? "",
+      imageUrl: thumbnail,
+      images: images.join(","),
+      variants: JSON.stringify(sp.product_variant ?? []),
+    };
+
+    const existing = await prisma.product.findFirst({
+      where: { supplierCode },
+    });
+
+    if (existing) {
+      await prisma.product.update({
+        where: { id: existing.id },
+        data: payload,
       });
+      return "updated";
+    } else {
+      await prisma.product.create({
+        data: {
+          ...payload,
+          slug: sp.slug || undefined,
+        },
+      });
+      return "created";
+    }
+  }
 
-      if (existing) {
-        await prisma.product.update({
-          where: { id: existing.id },
-          data: payload,
-        });
-        updated += 1;
-      } else {
-        await prisma.product.create({
-          data: {
-            ...payload,
-            slug: sp.slug || undefined,
-          },
-        });
-        created += 1;
+  for (let i = 0; i < supplierProducts.length; i += BATCH_SIZE) {
+    const batch = supplierProducts.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map((sp) =>
+        processProduct(sp)
+          .then((result) => ({ result }))
+          .catch((err) => ({
+            result: "skipped",
+            error: { id: sp?.id, name: sp?.name, error: err.message },
+          }))
+      )
+    );
+
+    for (const r of results) {
+      if (r.result === "created") created += 1;
+      else if (r.result === "updated") updated += 1;
+      else {
+        skipped += 1;
+        if (r.error) errors.push(r.error);
       }
-    } catch (err) {
-      skipped += 1;
-      errors.push({ id: sp?.id, name: sp?.name, error: err.message });
     }
   }
 
@@ -157,4 +181,4 @@ async function runSync(adminKey) {
     skipped,
     errors,
   });
-  }
+}
