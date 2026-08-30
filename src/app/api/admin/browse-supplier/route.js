@@ -32,15 +32,20 @@ export async function GET(request) {
   }
 
   const data = await res.json();
-  const products = (data?.products ?? []).map((sp) => ({
-    supplierCode: String(sp.product_code ?? sp.id),
-    name: sp.name,
-    thumbnail: buildImageUrl(sp.thumbnail_img),
-    // দাম দেখানোর জন্য (শুধু তথ্যের জন্য, ম্যাপিং নিচে ঠিকভাবে সেভ হবে)
-    costPrice: Number(sp.price ?? 0),        // সাপ্লায়ার/পাইকারি দাম
-    salePrice: Number(sp.sale_price ?? sp.price ?? 0), // বিক্রয় মূল্য
-    mrp: Number(sp.reselling_price ?? sp.price ?? 0),  // MRP/আসল দাম
-  }));
+  const products = (data?.products ?? []).map((sp) => {
+    const images = (sp.product_image ?? []).map((img) => buildImageUrl(img.product_image)).filter(Boolean);
+    const fullImage = buildImageUrl(sp.thumbnail_img) || images[0] || null;
+
+    return {
+      supplierCode: String(sp.product_code ?? sp.id),
+      name: sp.name,
+      thumbnail: fullImage,
+      // sp.price = বিক্রয় মূল্য, sp.sale_price = পাইকারি/কেনা দাম
+      costPrice: Number(sp.sale_price ?? sp.price ?? 0),   // পাইকারি/কেনা দাম
+      salePrice: Number(sp.price ?? 0),                     // বিক্রয় মূল্য
+      mrp: Number(sp.reselling_price ?? sp.price ?? 0),     // MRP/আসল দাম
+    };
+  });
 
   return Response.json({
     page,
