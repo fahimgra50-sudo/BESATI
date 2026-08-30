@@ -5,7 +5,6 @@ import Header from "@/components/Header";
 import ProductCard from "@/components/ProductCard";
 import ChatWidget from "@/components/ChatWidget";
 import HeroSlider from "@/components/HeroSlider";
-import { CATEGORY_LIST, money } from "@/lib/money";
 
 export default function HomePage() {
   const [products, setProducts] = useState([]);
@@ -28,6 +27,12 @@ export default function HomePage() {
       setLoading(false);
     })();
   }, []);
+
+  // ক্যাটাগরি লিস্ট এখন প্রোডাক্ট ডাটা থেকে অটোমেটিক তৈরি হয় — নতুন ক্যাটাগরি এলে নিজে থেকেই যোগ হবে
+  const categoryList = [
+    "সব",
+    ...Array.from(new Set(products.map((p) => p.category).filter(Boolean))).sort(),
+  ];
 
   const filtered = products
     .filter(
@@ -75,7 +80,7 @@ export default function HomePage() {
 
       <div className="max-w-6xl mx-auto px-4 pt-5 flex items-center gap-2 overflow-x-auto pb-1">
         <Filter size={15} className="text-[#8A8A78] shrink-0" />
-        {CATEGORY_LIST.map((c) => (
+        {categoryList.map((c) => (
           <button
             key={c}
             onClick={() => setCategory(c)}
