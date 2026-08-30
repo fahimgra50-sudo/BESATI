@@ -27,8 +27,6 @@ export async function POST(request) {
   const apiKey = process.env.SUPPLIER_API_KEY;
   const secretKey = process.env.SUPPLIER_SECRET_KEY;
 
-  // একই ব্যাচে যে পেজগুলোতে বেছে নেওয়া প্রোডাক্ট আছে সেগুলো আনতে হবে —
-  // সহজ রাখতে, প্রতিটা পেজ ক্রম করে খুঁজে বেছে নেওয়া কোডগুলো মেলাই
   let created = 0, skipped = 0;
   const errors = [];
   let page = 1, lastPage = 1;
@@ -55,10 +53,10 @@ export async function POST(request) {
           data: {
             name: sp.name,
             category: String(sp.category_id ?? "সাপ্লায়ার"),
-            price: Number(sp.sale_price ?? sp.price ?? 0),      // বিক্রয় মূল্য → price
-            mrp: Number(sp.reselling_price ?? sp.price ?? 0),   // আসল/কাটা দাম → mrp
-            costPrice: Number(sp.price ?? 0),                    // পাইকারি/কেনা দাম → costPrice
-            supplierPrice: Number(sp.price ?? 0),
+            price: Number(sp.price ?? 0),                        // বিক্রয় মূল্য → price
+            mrp: Number(sp.reselling_price ?? sp.price ?? 0),     // আসল/কাটা দাম → mrp
+            costPrice: Number(sp.sale_price ?? sp.price ?? 0),    // পাইকারি/কেনা দাম → costPrice
+            supplierPrice: Number(sp.sale_price ?? sp.price ?? 0),
             supplierCode: code,
             supplierUrl: `${SUPPLIER_BASE}/product/${sp.slug ?? sp.id}`,
             description: sp.details ?? "",
@@ -77,4 +75,4 @@ export async function POST(request) {
   } while (remaining.size > 0 && page <= lastPage);
 
   return Response.json({ created, skipped, errors, notFound: [...remaining] });
-                             }
+}
