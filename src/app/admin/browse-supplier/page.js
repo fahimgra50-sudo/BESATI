@@ -55,11 +55,11 @@ export default function BrowseSupplierPage() {
       {status && <p>{status}</p>}
 
       {loading ? <p>লোড হচ্ছে...</p> : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
           {products.map((p) => (
             <div key={p.supplierCode} style={{ border: "1px solid #ddd", padding: 8, borderRadius: 8 }}>
               <input type="checkbox" checked={selected.has(p.supplierCode)} onChange={() => toggle(p.supplierCode)} />
-              {p.thumbnail && <img src={p.thumbnail} alt={p.name} style={{ width: "100%", height: 100, objectFit: "cover" }} />}
+              {p.thumbnail && <img src={p.thumbnail} alt={p.name} style={{ width: "100%", height: 220, objectFit: "contain", background: "#fff" }} />}
               <p style={{ fontSize: 12 }}>{p.name}</p>
               <p style={{ fontSize: 12, color: "#555" }}>বিক্রয়: ৳{p.salePrice} | পাইকারি: ৳{p.costPrice}</p>
             </div>
@@ -74,4 +74,4 @@ export default function BrowseSupplierPage() {
       </div>
     </div>
   );
-          }
+}
