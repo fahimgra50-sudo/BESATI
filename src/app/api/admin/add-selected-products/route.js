@@ -63,6 +63,7 @@ export async function POST(request) {
             imageUrl: thumbnail,
             images: images.join(","),
             variants: JSON.stringify(sp.product_variant ?? []),
+            stock: 100,
           },
         });
         created++;
