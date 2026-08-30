@@ -13,6 +13,16 @@ function buildImageUrl(path) {
   return `${SUPPLIER_BASE}/images/products/${path}`;
 }
 
+function resolveCategoryName(sp) {
+  // সাপ্লায়ার API-তে ক্যাটাগরি নাম যেই ফিল্ডেই থাকুক, এখানে ট্রাই করা হচ্ছে
+  return (
+    sp.category_name ??
+    sp.category?.name ??
+    (typeof sp.category === "string" ? sp.category : null) ??
+    `ক্যাটাগরি-${sp.category_id}`
+  );
+}
+
 export async function POST(request) {
   const body = await request.json();
   const { key, supplierCodes } = body; // ["3266", "4875", ...]
@@ -52,10 +62,10 @@ export async function POST(request) {
         await prisma.product.create({
           data: {
             name: sp.name,
-            category: String(sp.category_id ?? "সাপ্লায়ার"),
-            price: Number(sp.price ?? 0),                        // বিক্রয় মূল্য → price
-            mrp: Number(sp.reselling_price ?? sp.price ?? 0),     // আসল/কাটা দাম → mrp
-            costPrice: Number(sp.sale_price ?? sp.price ?? 0),    // পাইকারি/কেনা দাম → costPrice
+            category: resolveCategoryName(sp),                    // সাপ্লায়ারের আসল ক্যাটাগরি নাম
+            price: Number(sp.price ?? 0),                          // বিক্রয় মূল্য → price
+            mrp: Number(sp.reselling_price ?? sp.price ?? 0),       // আসল/কাটা দাম → mrp
+            costPrice: Number(sp.sale_price ?? sp.price ?? 0),      // পাইকারি/কেনা দাম → costPrice
             supplierPrice: Number(sp.sale_price ?? sp.price ?? 0),
             supplierCode: code,
             supplierUrl: `${SUPPLIER_BASE}/product/${sp.slug ?? sp.id}`,
