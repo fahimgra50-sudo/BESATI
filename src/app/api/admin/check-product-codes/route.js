@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+ import { PrismaClient } from "@prisma/client";
 
 export const maxDuration = 30;
 const prisma = new PrismaClient();
@@ -17,6 +17,7 @@ export async function POST(request) {
   const matched = await prisma.product.findMany({
     where: { supplierCode: { in: codes.map(String) } },
     select: { id: true, supplierCode: true, name: true, videoUrl: true, imageUrl: true },
+  });
 
   return Response.json({ matched });
 }
