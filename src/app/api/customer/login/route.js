@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { createCustomerToken, CUSTOMER_COOKIE } from "@/lib/customerAuth";
+import { notifyN8n } from "@/lib/notifyN8n";
 
 export async function POST(req) {
   const { phone, password } = await req.json();
@@ -16,6 +17,14 @@ export async function POST(req) {
   const ok = await bcrypt.compare(password.trim(), customer.passwordHash);
   if (!ok) {
     return NextResponse.json({ error: "পাসওয়ার্ড ভুল হয়েছে" }, { status: 401 });
+  }
+
+  // লগইন সফল হয়েছে — n8n কে জানানো হচ্ছে ইমেইল নোটিফিকেশন পাঠানোর জন্য
+  if (customer.email) {
+    notifyN8n("login", {
+      customerName: customer.name,
+      customerEmail: customer.email,
+    });
   }
 
   const token = createCustomerToken(customer.id);
