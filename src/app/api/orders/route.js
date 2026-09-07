@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { Resend } from "resend";
 import { prisma } from "@/lib/db";
 import { verifyCustomerToken, CUSTOMER_COOKIE } from "@/lib/customerAuth";
 import { verifyAdminToken, ADMIN_COOKIE } from "@/lib/auth";
 import { isValidBangladeshLocation } from "@/lib/validateLocation";
 import { computeCouponDiscount } from "@/lib/coupon";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-const NOTIFY_EMAIL = "fahimgra50@gmail.com";
+import { notifyN8n } from "@/lib/notifyN8n";
 
 export async function GET() {
   const token = cookies().get(ADMIN_COOKIE)?.value;
@@ -49,7 +46,6 @@ export async function POST(req) {
   const settings = await prisma.settings.findFirst();
   const deliveryFee = settings ? (subtotal >= settings.freeDeliveryOver ? 0 : settings.deliveryCharge) : 0;
 
-  // কুপন থাকলে সার্ভারে আবার যাচাই করে ছাড় হিসাব করা হয় — ক্লায়েন্ট থেকে পাঠানো ছাড় কখনো বিশ্বাস করা হয় না
   let discount = 0;
   let appliedCouponCode = null;
   let couponRecord = null;
@@ -84,26 +80,18 @@ export async function POST(req) {
     return created;
   });
 
-  // নতুন অর্ডারের নোটিফিকেশন ইমেইল — ব্যর্থ হলেও অর্ডার প্রক্রিয়া থেমে যাবে না
-  try {
-    const itemsList = normalized.map(it => `<li>${it.name} × ${it.qty} — ৳${it.price * it.qty}</li>`).join("");
-    await resend.emails.send({
-      from: "Besati <onboarding@resend.dev>",
-      to: NOTIFY_EMAIL,
-      subject: `New order received — ৳${total}`,
-      html: `<p>A new order has been placed.</p>
-             <ul>
-               <li><b>Customer:</b> ${customerName}</li>
-               <li><b>Phone:</b> ${phone}</li>
-               <li><b>Address:</b> ${address}, ${thana}, ${district}</li>
-               <li><b>Payment:</b> ${paymentMethod}</li>
-               <li><b>Total:</b> ৳${total}</li>
-             </ul>
-             <p><b>Items:</b></p>
-             <ul>${itemsList}</ul>`,
+  // নতুন অর্ডার হয়েছে — n8n কে জানানো হচ্ছে গ্রাহক + কোম্পানি দুই জায়গাতেই ইমেইল পাঠানোর জন্য
+  const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { email: true } });
+  const itemsList = normalized.map(it => `${it.name} × ${it.qty} — ৳${it.price * it.qty}`).join(", ");
+  if (customer?.email) {
+    notifyN8n("order", {
+      customerName: customerName.trim(),
+      customerEmail: customer.email,
+      customerPhone: phone.trim(),
+      orderId: order.id,
+      orderTotal: total,
+      orderDetails: itemsList,
     });
-  } catch (e) {
-    console.error("Order notification email failed:", e);
   }
 
   return NextResponse.json(order, { status: 201 });
