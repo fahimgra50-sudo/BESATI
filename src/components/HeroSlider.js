@@ -31,7 +31,9 @@ export default function HeroSlider({ ads }) {
     <div className="relative w-full h-full">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={ad.imageUrl} alt={ad.title} className="w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-transparent" />
+      {ad.title && (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-transparent" />
+      )}
       {ad.title && (
         <div className="absolute left-4 sm:left-10 bottom-6 sm:bottom-10 right-4 sm:right-auto">
           <p className="text-white font-display font-bold text-xl sm:text-3xl drop-shadow max-w-md">{ad.title}</p>
